@@ -1,0 +1,24 @@
+import os
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+import uvicorn
+
+app = FastAPI(title="Ai Multi Agent Cloud Registry Mock")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+REGISTRY_DIR = os.path.join(os.path.dirname(__file__), "cloud_registry")
+
+# Serve the raw python files and json static files
+app.mount("/", StaticFiles(directory=REGISTRY_DIR), name="static")
+
+if __name__ == "__main__":
+    print(f"Cloud Registry Server starting on http://0.0.0.0:8001")
+    print(f"Serving files from {REGISTRY_DIR}")
+    uvicorn.run(app, host="0.0.0.0", port=8001)

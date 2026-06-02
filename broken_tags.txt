@@ -1,0 +1,1 @@
+1042: {isLoading ? <span key="loading">鍙戦€佷腑</span> : <span key="idle">鍙戦€?/span>}

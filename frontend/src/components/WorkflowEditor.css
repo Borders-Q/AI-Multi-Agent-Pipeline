@@ -1,0 +1,677 @@
+.workflow-editor-page {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  color: var(--sys-color-on-surface, #e2e8f0);
+  height: 100%;
+  width: 100%;
+  background: var(--sys-color-background, #0f172a);
+}
+
+.editor-workspace {
+  position: relative;
+  flex-grow: 1;
+  border-radius: 16px;
+  overflow: hidden;
+  background: var(--sys-color-surface, #1e293b);
+}
+
+.floating-palette {
+  position: absolute;
+  top: 14px;
+  bottom: 14px;
+  left: 14px;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  width: 260px;
+  padding: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  background: rgba(23, 25, 31, 0.94);
+  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.24);
+  backdrop-filter: blur(14px);
+  transition: width 220ms cubic-bezier(0.2, 0, 0, 1), padding 220ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.floating-palette.collapsed {
+  width: 58px;
+  padding: 10px 8px;
+}
+
+.palette-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  height: 34px;
+  border: 1px solid rgba(77, 163, 255, 0.2);
+  border-radius: 999px;
+  background: rgba(77, 163, 255, 0.12);
+  color: #9bd4ff;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+  transition: transform 160ms ease, background 160ms ease;
+  margin-bottom: 12px;
+}
+
+.palette-toggle:hover {
+  background: rgba(77, 163, 255, 0.2);
+  transform: translateY(-1px);
+}
+
+.palette-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex-grow: 1;
+  color: #9bd4ff;
+}
+
+.palette-rail strong {
+  writing-mode: vertical-rl;
+  letter-spacing: 0;
+  font-size: 13px;
+}
+
+.palette-rail span {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(77, 163, 255, 0.14);
+  color: #9bd4ff;
+  font-weight: 900;
+}
+
+.palette-content {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex-grow: 1;
+  overflow: hidden;
+}
+
+.palette-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.palette-head div {
+  display: grid;
+  gap: 2px;
+}
+
+.palette-head strong {
+  color: #f4f4f5;
+  font-size: 15px;
+}
+
+.palette-head span {
+  color: #a1a1aa;
+  font-size: 12px;
+}
+
+.palette-filters {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.palette-filters input, .palette-filters select {
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.2);
+  color: white;
+  font-size: 13px;
+}
+
+.palette-list {
+  display: grid;
+  gap: 10px;
+  overflow: auto;
+  padding: 2px 2px 4px;
+}
+
+.palette-agent {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  padding: 10px 11px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  background: #17191f;
+  cursor: grab;
+  transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+}
+
+.palette-agent:hover {
+  border-color: #8ab4f8;
+  box-shadow: 0 10px 22px rgba(26, 115, 232, 0.1);
+  transform: translateY(-2px);
+}
+
+.palette-agent.branch {
+  border-color: #fbbc04;
+  background: linear-gradient(135deg, rgba(250, 204, 21, 0.12), transparent 46%), #17191f;
+}
+
+.palette-agent.approval {
+  border-color: #a78bfa;
+  background: linear-gradient(90deg, rgba(167, 139, 250, 0.34) 0, rgba(167, 139, 250, 0.34) 5px, transparent 5px), #17191f;
+}
+
+.palette-agent.code {
+  border-color: #8ab4f8;
+  background: linear-gradient(90deg, rgba(77, 163, 255, 0.34) 0, rgba(77, 163, 255, 0.34) 5px, transparent 5px), #17191f;
+}
+
+.palette-agent.custom {
+  border-color: #94a3b8;
+  background: linear-gradient(90deg, rgba(148, 163, 184, 0.28) 0, rgba(148, 163, 184, 0.28) 5px, transparent 5px), #17191f;
+}
+
+.palette-agent-main {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.palette-agent strong {
+  overflow: hidden;
+  color: #f4f4f5;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.palette-agent span {
+  overflow: hidden;
+  color: #a1a1aa;
+  font-family: monospace;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.palette-agent p {
+  grid-column: 1 / -1;
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  color: #a1a1aa;
+  font-size: 12px;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+}
+
+.custom-node-label {
+  font-weight: bold;
+  margin-bottom: 4px;
+}
+
+.custom-node-desc {
+  font-size: 0.75rem;
+  opacity: 0.8;
+}
+
+.save-button {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 4;
+  padding: 8px 16px;
+  background-color: var(--sys-color-primary, #3b82f6);
+  color: var(--sys-color-on-primary, #ffffff);
+  border: none;
+  border-radius: 20px;
+  cursor: pointer;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.save-button:hover {
+  filter: brightness(1.1);
+}
+
+.workflow-editor-shell {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.workflow-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 68px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--sys-color-surface-variant);
+  background: var(--sys-color-surface);
+}
+
+.toolbar-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  color: var(--sys-color-on-surface-variant);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.toolbar-status span {
+  padding: 4px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+}
+
+.toolbar-status .ok {
+  border-color: rgba(74, 222, 128, 0.28);
+  color: #86efac;
+}
+
+.toolbar-status .danger {
+  border-color: rgba(251, 113, 133, 0.34);
+  color: #fda4af;
+}
+
+.palette-count,
+.palette-agent em {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 22px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: rgba(77, 163, 255, 0.12);
+  color: #9bd4ff;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.palette-search {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  color: #a1a1aa;
+}
+
+.palette-search input {
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: white;
+  font-size: 13px;
+}
+
+.validation-float {
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  z-index: 5;
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid rgba(251, 191, 36, 0.28);
+  border-radius: 10px;
+  background: rgba(23, 25, 31, 0.94);
+  color: #fef3c7;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.22);
+}
+
+.validation-float strong {
+  font-size: 12px;
+}
+
+.validation-float span {
+  color: #a1a1aa;
+  font-size: 12px;
+}
+
+.inspector-paper {
+  width: 360px;
+  min-width: 360px;
+  border-left: 1px solid var(--sys-color-surface-variant);
+  background: var(--sys-color-surface) !important;
+  color: var(--sys-color-on-surface) !important;
+  --workflow-inspector-field-bg: color-mix(in srgb, var(--sys-color-surface-variant) 72%, transparent);
+  --workflow-inspector-field-border: color-mix(in srgb, var(--sys-color-on-surface-variant) 30%, transparent);
+  --workflow-inspector-field-hover: color-mix(in srgb, var(--sys-color-primary) 54%, var(--sys-color-on-surface-variant));
+  --workflow-inspector-muted-bg: color-mix(in srgb, var(--sys-color-surface-variant) 54%, transparent);
+  --workflow-inspector-active-bg: color-mix(in srgb, var(--sys-color-primary-container) 64%, transparent);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.inspector-paper * {
+  box-sizing: border-box;
+}
+
+.inspector-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px;
+  border-bottom: 1px solid var(--sys-color-surface-variant);
+}
+
+.inspector-title .MuiTypography-root,
+.inspector-paper .MuiTypography-root {
+  color: var(--sys-color-on-surface);
+}
+
+.inspector-paper .MuiTypography-overline,
+.inspector-paper .MuiTypography-caption {
+  color: var(--sys-color-on-surface-variant);
+}
+
+.inspector-paper .MuiChip-root {
+  max-width: 138px;
+  border-color: var(--workflow-inspector-field-border);
+  background: var(--workflow-inspector-muted-bg);
+  color: var(--sys-color-on-surface);
+}
+
+.inspector-paper .MuiChip-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.node-tabs {
+  min-height: 45px;
+  border-bottom: 1px solid var(--sys-color-surface-variant);
+}
+
+.inspector-paper .node-tabs .MuiTabs-indicator {
+  height: 2px;
+  border-radius: 999px 999px 0 0;
+  background-color: var(--sys-color-primary);
+}
+
+.inspector-paper .node-tabs .MuiTab-root {
+  min-height: 44px;
+  color: var(--sys-color-on-surface-variant);
+  font-weight: 800;
+  letter-spacing: 0;
+  opacity: 1;
+  text-transform: none;
+}
+
+.inspector-paper .node-tabs .MuiTab-root.Mui-selected {
+  color: var(--sys-color-primary);
+  background: var(--workflow-inspector-active-bg);
+}
+
+.inspector-paper .node-tabs .MuiTabScrollButton-root {
+  color: var(--sys-color-on-surface-variant);
+}
+
+.inspector-scroll-area {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 16px;
+}
+
+.inspector-paper .MuiTextField-root {
+  width: 100%;
+}
+
+.inspector-paper .MuiInputLabel-root {
+  color: var(--sys-color-on-surface-variant);
+}
+
+.inspector-paper .MuiInputLabel-root.Mui-focused {
+  color: var(--sys-color-primary);
+}
+
+.inspector-paper .MuiInputLabel-root.Mui-disabled {
+  color: color-mix(in srgb, var(--sys-color-on-surface-variant) 62%, transparent);
+}
+
+.inspector-paper .MuiInputBase-root,
+.inspector-paper .MuiOutlinedInput-root {
+  border-radius: 10px;
+  background: var(--workflow-inspector-field-bg);
+  color: var(--sys-color-on-surface);
+}
+
+.inspector-paper .MuiInputBase-input,
+.inspector-paper .MuiSelect-select {
+  color: var(--sys-color-on-surface);
+}
+
+.inspector-paper .MuiInputBase-input::placeholder,
+.inspector-paper textarea::placeholder {
+  color: var(--sys-color-on-surface-variant);
+  opacity: 1;
+}
+
+.inspector-paper .MuiInputBase-input.Mui-disabled {
+  color: var(--sys-color-on-surface-variant);
+  -webkit-text-fill-color: var(--sys-color-on-surface-variant);
+}
+
+.inspector-paper .MuiOutlinedInput-notchedOutline {
+  border-color: var(--workflow-inspector-field-border);
+}
+
+.inspector-paper .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline {
+  border-color: var(--workflow-inspector-field-hover);
+}
+
+.inspector-paper .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline {
+  border-color: var(--sys-color-primary);
+  border-width: 1px;
+}
+
+.inspector-paper .MuiOutlinedInput-root.Mui-disabled {
+  background: color-mix(in srgb, var(--sys-color-surface-variant) 42%, transparent);
+}
+
+.inspector-paper .MuiOutlinedInput-root.Mui-disabled .MuiOutlinedInput-notchedOutline {
+  border-color: color-mix(in srgb, var(--sys-color-on-surface-variant) 18%, transparent);
+}
+
+.inspector-paper .MuiFormHelperText-root {
+  margin-left: 2px;
+  color: var(--sys-color-on-surface-variant);
+}
+
+.inspector-paper .MuiSvgIcon-root,
+.inspector-paper .MuiSelect-icon {
+  color: var(--sys-color-on-surface-variant);
+}
+
+.inspector-paper .MuiFormControlLabel-root {
+  width: fit-content;
+  margin-left: 0;
+  color: var(--sys-color-on-surface);
+}
+
+.inspector-paper .MuiFormControlLabel-label {
+  color: var(--sys-color-on-surface);
+  font-weight: 700;
+}
+
+.inspector-paper .MuiSwitch-track {
+  background-color: var(--sys-color-on-surface-variant);
+  opacity: 0.34;
+}
+
+.inspector-paper .MuiSwitch-thumb {
+  background-color: var(--sys-color-on-surface);
+}
+
+.inspector-paper .MuiSwitch-switchBase.Mui-checked {
+  color: var(--sys-color-primary);
+}
+
+.inspector-paper .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track {
+  background-color: var(--sys-color-primary);
+  opacity: 0.44;
+}
+
+.properties-form {
+  display: grid;
+  gap: 14px;
+}
+
+.mapping-stack {
+  display: grid;
+  gap: 14px;
+}
+
+.mapping-stack section {
+  display: grid;
+  gap: 8px;
+}
+
+.mapping-stack .MuiDivider-root {
+  border-color: var(--sys-color-surface-variant);
+}
+
+.mapping-stack .MuiTypography-subtitle2 {
+  color: var(--sys-color-on-surface);
+  font-weight: 800;
+}
+
+.mapping-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid var(--workflow-inspector-field-border);
+  border-radius: 10px;
+  background: var(--workflow-inspector-muted-bg);
+  color: var(--sys-color-on-surface-variant);
+  font-size: 12px;
+}
+
+.mapping-row span {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--sys-color-on-surface);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mapping-row b {
+  color: var(--sys-color-primary);
+  font-size: 11px;
+}
+
+.muted-text {
+  margin: 8px 0 0;
+  color: var(--sys-color-on-surface-variant);
+  font-size: 13px;
+}
+
+.issue-card {
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+  border: 1px solid var(--workflow-inspector-field-border);
+  border-radius: 10px;
+  background: var(--workflow-inspector-muted-bg);
+}
+
+.issue-card.error {
+  border-color: rgba(251, 113, 133, 0.34);
+  background: rgba(251, 113, 133, 0.08);
+}
+
+.issue-card.warning {
+  border-color: rgba(251, 191, 36, 0.28);
+  background: rgba(251, 191, 36, 0.08);
+}
+
+.issue-card strong {
+  color: var(--sys-color-on-surface);
+  font-size: 13px;
+}
+
+.issue-card span {
+  color: var(--sys-color-on-surface-variant);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.inspector-actions-bottom {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding: 14px 16px;
+  border-top: 1px solid var(--sys-color-surface-variant);
+  background: var(--sys-color-surface);
+}
+
+.inspector-actions-bottom .MuiButton-root {
+  min-width: 0;
+  border-radius: 12px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.inspector-actions-bottom .MuiButton-outlined {
+  border-color: color-mix(in srgb, var(--sys-color-error) 56%, var(--workflow-inspector-field-border));
+  color: var(--sys-color-error);
+}
+
+.inspector-actions-bottom .MuiButton-contained {
+  background: var(--sys-color-primary);
+  color: var(--sys-color-on-primary);
+}
+
+.workflow-inspector-menu {
+  border: 1px solid var(--sys-color-surface-variant);
+  background: var(--sys-color-surface) !important;
+  color: var(--sys-color-on-surface) !important;
+}
+
+.workflow-inspector-menu .MuiMenuItem-root {
+  color: var(--sys-color-on-surface) !important;
+}
+
+.workflow-inspector-menu .MuiMenuItem-root.Mui-selected {
+  background: color-mix(in srgb, var(--sys-color-primary-container) 70%, transparent) !important;
+  color: var(--sys-color-on-primary-container) !important;
+}
+
+.workflow-inspector-menu .MuiMenuItem-root:hover,
+.workflow-inspector-menu .MuiMenuItem-root.Mui-focusVisible {
+  background: color-mix(in srgb, var(--sys-color-primary-container) 48%, transparent) !important;
+  color: var(--sys-color-on-surface) !important;
+}

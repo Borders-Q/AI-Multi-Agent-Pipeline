@@ -1,0 +1,371 @@
+import React, { useState, useEffect } from 'react';
+import { Activity, Sparkles, Search, X, Code, Globe, BarChart3, Terminal, Wrench, Cpu, Package, Plug, Plus, ExternalLink, Settings } from 'lucide-react';
+import Editor from '@monaco-editor/react';
+
+const API_BASE = `http://${window.location.hostname}:8000`;
+
+const SKILL_CATEGORIES = {
+  all: { label: '全部技能', icon: '🔧' },
+  filesystem: { label: '文件操作', icon: '📁' },
+  network: { label: '网络与搜索', icon: '🌐' },
+  visualization: { label: '数据可视化', icon: '📊' },
+  system: { label: '系统操作', icon: '💻' },
+  analysis: { label: '代码分析', icon: '🔍' },
+  custom: { label: '自定义技能', icon: '⚡' },
+};
+
+const SKILL_CATEGORY_MAP = {
+  write_file: 'filesystem',
+  read_file: 'filesystem',
+  run_command: 'system',
+  web_search: 'network',
+  http_requester: 'network',
+  data_visualizer: 'visualization',
+  math_sandbox: 'analysis',
+  mindmap_generator: 'visualization',
+  code_analyzer: 'analysis',
+  file_tree_viewer: 'filesystem',
+  project_scaffolder: 'system',
+  git_operator: 'system',
+  database_query: 'analysis',
+  generate_report: 'visualization',
+  manage_todo: 'system',
+  dispatch_subagent: 'system',
+};
+
+function SkillsStore({ skills, enabledSkills, setEnabledSkills, onImportSkill }) {
+  const [skillTab, setSkillTab] = useState('local');
+  const [marketSkills, setMarketSkills] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeCategory, setActiveCategory] = useState('all');
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [importCode, setImportCode] = useState(`def my_custom_tool(param1: str):
+    return f"Processed {param1}"
+
+SCHEMA = {
+    "name": "my_custom_tool",
+    "description": "A custom tool that does something.",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "param1": {"type": "string", "description": "The input"}
+        },
+        "required": ["param1"]
+    }
+}`);
+  const [importError, setImportError] = useState('');
+
+  const fetchMarketSkills = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/skills/market`);
+      if (res.ok) {
+        const data = await res.json();
+        setMarketSkills(data.market_skills || []);
+      }
+    } catch (e) {
+      console.log("Failed to fetch market skills:", e);
+    }
+  };
+
+  useEffect(() => {
+    if (skillTab === 'market' && marketSkills.length === 0) {
+      fetchMarketSkills();
+    }
+  }, [skillTab]);
+
+  const handleDownloadSkill = async (skillId) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/skills/download`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ skill_id: skillId })
+      });
+      if (res.ok) {
+        alert("下载并安装成功！");
+        setSkillTab('local');
+      } else {
+        const err = await res.json();
+        alert(`安装失败: ${err.detail}`);
+      }
+    } catch (e) {
+      alert(`网络错误: ${e.message}`);
+    }
+  };
+
+  const handleImportSkill = async () => {
+    setImportError('');
+    try {
+      const res = await fetch(`${API_BASE}/api/skills/import`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: importCode })
+      });
+      if (res.ok) {
+        alert("自定义技能注入成功！");
+        setIsImportModalOpen(false);
+        if (onImportSkill) onImportSkill();
+      } else {
+        const err = await res.json();
+        setImportError(err.detail);
+      }
+    } catch (e) {
+      setImportError(`网络错误: ${e.message}`);
+    }
+  };
+
+  const getCategory = (name) => SKILL_CATEGORY_MAP[name] || 'custom';
+
+  const filteredSkills = skills.filter(skill => {
+    const name = skill.function.name;
+    const desc = skill.function.description || '';
+    const matchesSearch = !searchQuery ||
+      name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      desc.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesCategory = activeCategory === 'all' || getCategory(name) === activeCategory;
+    return matchesSearch && matchesCategory;
+  });
+
+  return (
+    <div style={{ flex: 1, overflowY: 'auto', padding: '32px', display: 'flex', flexDirection: 'column' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '32px' }}>
+        <div>
+          <h2 style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: 0 }}>
+            <Activity size={28} color="var(--sys-color-primary)" /> 技能大厅 (Skills Store)
+          </h2>
+          <p style={{ color: 'var(--sys-color-on-surface-variant)', marginTop: '8px' }}>
+            管理 Agent 的核心能力模块。开启的技能将在深度工作流中被动态调用。
+          </p>
+        </div>
+        <button
+          className="btn-primary"
+          style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+          onClick={() => setIsImportModalOpen(true)}
+        >
+          <Sparkles size={16} /> ➕ 导入自定义技能
+        </button>
+      </div>
+
+      {/* Main Tabs */}
+      <div style={{ display: 'flex', gap: '16px', marginBottom: '24px', borderBottom: '1px solid var(--sys-color-surface-variant)', paddingBottom: '8px' }}>
+        <button
+          onClick={() => setSkillTab('local')}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1rem', fontWeight: 'bold', color: skillTab === 'local' ? 'var(--sys-color-primary)' : 'var(--sys-color-on-surface-variant)', borderBottom: skillTab === 'local' ? '2px solid var(--sys-color-primary)' : 'none', padding: '8px' }}
+        >
+          已安装技能 ({skills.length})
+        </button>
+        <button
+          onClick={() => setSkillTab('market')}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1rem', fontWeight: 'bold', color: skillTab === 'market' ? 'var(--sys-color-primary)' : 'var(--sys-color-on-surface-variant)', borderBottom: skillTab === 'market' ? '2px solid var(--sys-color-primary)' : 'none', padding: '8px' }}
+        >
+          🌐 云端应用市场
+        </button>
+      </div>
+
+      {skillTab === 'local' ? (
+        <>
+          {/* Search + Category Filter */}
+          <div style={{ display: 'flex', gap: '12px', marginBottom: '24px', flexWrap: 'wrap', alignItems: 'center' }}>
+            <div style={{ position: 'relative', flex: '1 1 300px' }}>
+              <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--sys-color-on-surface-variant)' }} />
+              <input
+                type="text"
+                className="input-elegant"
+                placeholder="搜索技能名称或描述..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                style={{ width: '100%', paddingLeft: '36px' }}
+              />
+            </div>
+          </div>
+
+          {/* Category Chips */}
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', flexWrap: 'wrap' }}>
+            {Object.entries(SKILL_CATEGORIES).map(([key, { label, icon }]) => (
+              <button
+                key={key}
+                onClick={() => setActiveCategory(key)}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: '20px',
+                  border: activeCategory === key ? '2px solid var(--sys-color-primary)' : '1px solid var(--sys-color-surface-variant)',
+                  background: activeCategory === key ? 'var(--sys-color-primary-container)' : 'transparent',
+                  color: activeCategory === key ? 'var(--sys-color-on-primary-container)' : 'var(--sys-color-on-surface-variant)',
+                  cursor: 'pointer',
+                  fontSize: '0.85rem',
+                  fontWeight: activeCategory === key ? 'bold' : 'normal',
+                  transition: 'all 0.2s',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}
+              >
+                {icon} {label}
+              </button>
+            ))}
+          </div>
+
+          {/* Skills Grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' }}>
+            {filteredSkills.map((skill) => {
+              const isEnabled = enabledSkills.includes(skill.function.name);
+              const category = getCategory(skill.function.name);
+              const catInfo = SKILL_CATEGORIES[category] || SKILL_CATEGORIES.custom;
+              return (
+                <div key={skill.function.name} className="card glass" style={{
+                  padding: '20px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '12px',
+                  border: isEnabled ? '1px solid var(--sys-color-primary)' : '1px solid var(--sys-color-surface-variant)',
+                  transition: 'all 0.3s ease',
+                  position: 'relative',
+                  overflow: 'hidden'
+                }}>
+                  {/* Enabled glow */}
+                  {isEnabled && (
+                    <div style={{
+                      position: 'absolute', top: 0, left: 0, right: 0, height: '3px',
+                      background: 'linear-gradient(90deg, var(--sys-color-primary), #00ff9d)',
+                    }} />
+                  )}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span style={{ fontSize: '1.4rem' }}>{catInfo.icon}</span>
+                      <div>
+                        <h3 style={{ margin: 0, color: 'var(--sys-color-primary)', fontSize: '0.95rem' }}>
+                          {skill.function.name}
+                        </h3>
+                        <span style={{
+                          fontSize: '0.7rem',
+                          color: 'var(--sys-color-on-surface-variant)',
+                          backgroundColor: 'var(--sys-color-surface-variant)',
+                          padding: '1px 6px',
+                          borderRadius: '4px',
+                          marginTop: '2px',
+                          display: 'inline-block'
+                        }}>
+                          {catInfo.label}
+                        </span>
+                      </div>
+                    </div>
+                    <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={isEnabled}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setEnabledSkills(prev => [...prev, skill.function.name]);
+                          } else {
+                            setEnabledSkills(prev => prev.filter(name => name !== skill.function.name));
+                          }
+                        }}
+                        style={{ width: '18px', height: '18px', accentColor: 'var(--sys-color-primary)' }}
+                      />
+                    </label>
+                  </div>
+                  <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--sys-color-on-surface-variant)', flex: 1, lineHeight: 1.5 }}>
+                    {skill.function.description}
+                  </p>
+                  {/* Params preview */}
+                  {skill.function.parameters?.properties && (
+                    <div style={{ fontSize: '0.75rem', color: 'var(--sys-color-on-surface-variant)', fontFamily: 'monospace', opacity: 0.7 }}>
+                      参数: {Object.keys(skill.function.parameters.properties).join(', ')}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            {filteredSkills.length === 0 && (
+              <p style={{ color: 'var(--sys-color-on-surface-variant)', gridColumn: '1 / -1', textAlign: 'center', padding: '40px' }}>
+                {searchQuery || activeCategory !== 'all' ? '未找到匹配的技能。' : '暂无可用技能。'}
+              </p>
+            )}
+          </div>
+        </>
+      ) : (
+        <div>
+          <div style={{ marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <input
+              type="text"
+              className="input-elegant"
+              placeholder="🔍 搜索海量应用市场 (如 'Database', 'Notion')..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{ flex: 1 }}
+            />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '24px' }}>
+            {marketSkills
+              .filter(skill => skill.name.toLowerCase().includes(searchQuery.toLowerCase()) || skill.description.toLowerCase().includes(searchQuery.toLowerCase()))
+              .map((skill) => (
+                <div key={skill.id} className="card glass" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px', border: '1px dashed var(--sys-color-surface-variant)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ fontSize: '2rem' }}>{skill.icon}</div>
+                    <div>
+                      <h3 style={{ margin: 0, color: 'var(--sys-color-on-surface)' }}>{skill.name}</h3>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--sys-color-primary)', backgroundColor: 'var(--sys-color-primary-container)', padding: '2px 6px', borderRadius: '4px', display: 'inline-block', marginTop: '4px' }}>官方认证</span>
+                    </div>
+                  </div>
+                  <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--sys-color-on-surface-variant)', flex: 1 }}>
+                    {skill.description}
+                  </p>
+                  <button
+                    onClick={() => handleDownloadSkill(skill.id)}
+                    className="btn-primary"
+                    style={{ padding: '8px', fontSize: '0.9rem', display: 'flex', justifyContent: 'center', gap: '8px' }}
+                  >
+                    📥 从云端拉取
+                  </button>
+                </div>
+              ))}
+            {marketSkills.length === 0 && (
+              <p style={{ color: 'var(--sys-color-on-surface-variant)' }}>连接 Registry 中...</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Import Modal */}
+      {isImportModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal-content animate-fade-in" style={{ maxWidth: '800px', width: '90%' }}>
+            <button className="modal-close" onClick={() => setIsImportModalOpen(false)}><X size={24} /></button>
+            <h2 style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Sparkles size={24} color="var(--sys-color-primary)" /> 导入自定义技能
+            </h2>
+            <p style={{ fontSize: '0.9rem', color: 'var(--sys-color-on-surface-variant)', marginBottom: '24px' }}>
+              粘贴 Python 工具脚本。必须包含执行函数和 <code>SCHEMA</code> 字典。系统将动态编译注入。
+            </p>
+            {importError && (
+              <div style={{ padding: '12px', backgroundColor: 'rgba(255,0,0,0.1)', color: 'var(--sys-color-error)', borderRadius: '8px', marginBottom: '16px', fontSize: '0.9rem' }}>
+                {importError}
+              </div>
+            )}
+            <div style={{ height: '350px', width: '100%', borderRadius: '8px', overflow: 'hidden', border: '1px solid #313244' }}>
+              <Editor
+                height="100%"
+                defaultLanguage="python"
+                theme="vs-dark"
+                value={importCode}
+                onChange={(value) => setImportCode(value || '')}
+                options={{
+                  minimap: { enabled: false },
+                  fontSize: 14,
+                  wordWrap: 'on',
+                  scrollBeyondLastLine: false,
+                }}
+              />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '24px' }}>
+              <button className="btn-primary" style={{ backgroundColor: 'var(--sys-color-surface-variant)', color: 'var(--sys-color-on-surface)' }} onClick={() => setIsImportModalOpen(false)}>取消</button>
+              <button className="btn-primary" onClick={handleImportSkill}>🚀 编译并加载</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default SkillsStore;

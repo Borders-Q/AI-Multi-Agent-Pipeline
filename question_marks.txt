@@ -1,0 +1,46 @@
+397: alert("鏃犳硶杩炴帴鍒板悗绔紝璇风‘璁?server.py 姝ｅ湪杩愯銆?);
+413: alert("鏃犳硶杩炴帴鍒板悗绔紝璇风‘璁?server.py 姝ｅ湪杩愯銆?);
+426: alert("鏃犳硶杩炴帴鍒板悗绔紝璇风‘璁?server.py 姝ｅ湪杩愯銆?);
+491: setMessages(prev => [...prev, { role: 'user', content: '馃殌 [鐢ㄦ埛鎿嶄綔] 鍚姩娣卞害宸ヤ綔娴佷笅閽诲垎鏋?..' }]);
+543: if (text.includes('鍚姩娣卞害宸ヤ綔娴?)) {
+545: const allUserMsgs = messages.filter(m => m.role === 'user' && !m.content.includes('鍚姩娣卞害宸ヤ綔娴?));
+559: <p style={{ color: 'var(--sys-color-primary)', fontWeight: '500' }}>馃殌 鏋舵瀯璁″垝宸茬敓鎴愶紝璇峰湪鍙充晶鏂囨。闈㈡澘瀹℃煡銆?/p>
+663: <p style={{ marginBottom: '32px', color: 'var(--sys-color-on-surface-variant)' }}>楂樺害鑷不鐨勫鏅鸿兘浣撴寚鎸ユ帶鍒跺彴銆?/p>
+683: <p style={{ margin: 0, fontSize: '0.85rem' }}><span className={`badge badge-${activeProvider || 'unknown'}`}>{activeProvider || '鏈厤缃ā鍨?}</span></p>
+719: <NavLink to="/skills" className={({ isActive }) => isActive ? "btn-primary active-link" : "btn-secondary"} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: isSidebarOpen ? 'flex-start' : 'center', gap: '12px', padding: '12px', marginTop: '8px', border: 'none' }} title="鎶€鑳藉ぇ鍘?>
+721: <span style={{ maxWidth: isSidebarOpen ? '200px' : '0px', opacity: isSidebarOpen ? 1 : 0, overflow: 'hidden', whiteSpace: 'nowrap', transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)' }}>鎶€鑳藉ぇ鍘?(Skills)</span>
+734: <p style={{ margin: 0 }}>褰撳墠鏆傛棤浠诲姟瑙勫垝銆?/p>
+764: 鉃?鏂板紑瀵硅瘽
+791: 馃棏锔?娓呯┖褰撳墠瀵硅瘽
+802: 鏀惰捣渚ц竟鏍?鈼€
+805: <button className="btn-secondary" onClick={() => setIsSidebarOpen(true)} style={{ padding: '8px 12px', display: 'flex', justifyContent: 'center' }} title="灞曞紑渚ц竟鏍?>
+806: 鈻?              </button>
+873: {isWorkflowEditorOpen ? '閫€鍑虹紪杈? : '閰嶇疆褰撳墠宸ヤ綔娴?}
+883: // Chat view only 鈥?Skills moved to /skills route
+889: <span>鈿狅笍 鏃犳硶杩炴帴鍒版牳蹇冪郴缁熴€傝纭鍚庣鏈嶅姟 (server.py) 姝ｅ湪杩愯銆?/span>
+913: <p>璇峰湪涓嬫柟杈撳叆鎸囦护銆傛偍鍙互閫氳繃渚ц竟鏍忕鐞嗕换鍔℃祦銆佺洃鎺ц妭鐐规垨閰嶇疆浜戠妯″瀷銆?/p>
+947: {node.state === 'done' ? <span key="done">鉁?/span> : <span key="prog">馃攧</span>} <span>{node.node}</span>
+949: {i < msg.workflow.length - 1 && <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.8rem' }}>鈫?/span>}
+962: {msg.role === 'agent' && msg.routed_by === 'GPU' && !msg.content.includes("闈炲父鎶辨瓑") && !msg.content.includes("瀵逛笉璧?) && !msg.content.includes("鎷掔粷") && (
+965: <Sparkles size={14} /> 馃殌 鍚姩娣卞害宸ヤ綔娴佷笅閽?(浜戠 API)
+980: <Activity size={14} className="animate-pulse" /> &lt; 娣卞害杩愮畻涓庡伐鍏疯皟鐢ㄥ崗璁縺娲?/&gt;
+996: <Activity size={14} className="animate-pulse" /> 杩炴帴绁炵粡鍏冪綉缁?..
+1010: title="鍒囨崲褰撳€兼ā鍨?
+1013: ? [{ value: "", label: "鏈厤缃ā鍨? }]
+1023: { value: 'standard', label: '鈿?鏍囧噯鏋侀€熸祦' },
+1025: { value: 'expert_review', label: '馃 涓撳瀹℃煡娴? },
+1026: { value: 'creative_brainstorm', label: '馃挕 鍙戞暎椋庢毚娴? }
+1034: placeholder="璇疯緭鍏ユ偍鐨勬寚浠わ紙绠€鍗曠殑浜ょ敱鏈湴锛屽鏉傜殑浜ょ敱浜戠锛?.."
+1091: 鎵ц娴?(Execution)
+1095: title="鏀惰捣宸ヤ綔娴?
+1106: 鎵ц涓?..
+1153: <button className="btn-primary" onClick={approvePlan}>鉁?鎵瑰噯鎵ц (Approve)</button>
+1165: <Sparkles size={24} color="var(--sys-color-primary)" /> 瀵煎叆鑷畾涔夋妧鑳?              </h2>
+1167: 鍦ㄦ绮樿创鎮ㄨ嚜宸辩紪鍐欑殑 Python 宸ュ叿鑴氭湰銆傚繀椤诲寘鍚墽琛屽嚱鏁板拰绗﹀悎 OpenAI Tool Call 瑙勮寖鐨?<code>SCHEMA</code> 瀛楀吀銆傜郴缁熷皢鍔ㄦ€佺紪璇戝苟娉ㄥ叆锛屾棤闇€閲嶅惎銆?              </p>
+1195: 馃殌 缂栬瘧骞跺姞杞?                </button>
+1207: <Settings size={24} /> 妯″瀷涓?API Key 绠＄悊
+1213: {models?.length === 0 ? <span style={{ fontSize: '0.9rem', color: 'gray', gridColumn: '1 / -1' }}>鏆傛棤妯″瀷锛岃鍦ㄤ笅鏂规坊鍔?/span> : null}
+1255: title="鐐瑰嚮閲嶅懡鍚嶅埆鍚?
+1257: {m.alias || "鏈懡鍚嶆ā鍨?}
+1281: 绯荤粺灏嗘牴鎹?API Key 鐨勬牸寮忚嚜鍔ㄨ瘑鍒墍灞炲钩鍙?(鏀寔 OpenAI, Gemini, DeepSeek, Zhipu 绛?銆?                </p>
+1328: 纭畾瑕佹竻绌哄綋鍓嶄細璇濈殑鍘嗗彶璁板綍鍚楋紵姝ゆ搷浣滄棤娉曟挙閿€銆?            </p>

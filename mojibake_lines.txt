@@ -1,0 +1,1356 @@
+1: import React, { useState, useEffect, useRef } from 'react';
+2: import { Routes, Route, NavLink, useNavigate, useLocation } from 'react-router-dom';
+3: import { Settings, Sparkles, User, Bot, LayoutTemplate, Activity, X, History, FileText, Blocks } from 'lucide-react';
+4: import ReactMarkdown from 'react-markdown';
+5: import remarkGfm from 'remark-gfm';
+6: import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+7: import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+8: import WorkflowVisualizer from './components/WorkflowVisualizer';
+9: import WorkflowEditor from './components/WorkflowEditor';
+10: import ReactECharts from 'echarts-for-react';
+11: import MermaidChart from './components/MermaidChart';
+12: import Dashboard from './views/Dashboard';
+13: import RunHistory from './views/RunHistory';
+14: import WorkflowReplay from './views/WorkflowReplay';
+15: import Reports from './views/Reports';
+16: import SkillsStore from './views/SkillsStore';
+17: import Workflows from './views/Workflows';
+18: import WorkflowEditorPage from './views/WorkflowEditorPage';
+19: import './index.css';
+20: 
+21: const CustomSelect = ({ value, options, onChange, title }) => {
+22: const [isOpen, setIsOpen] = useState(false);
+23: const dropdownRef = useRef(null);
+24: 
+25: useEffect(() => {
+26: const handleClickOutside = (e) => {
+27: if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+28: setIsOpen(false);
+29: }
+30: };
+31: document.addEventListener('mousedown', handleClickOutside);
+32: return () => document.removeEventListener('mousedown', handleClickOutside);
+33: }, []);
+34: 
+35: const selectedOption = options.find(o => o.value === value) || options[0];
+36: 
+37: return (
+38: <div ref={dropdownRef} style={{ position: 'relative', display: 'inline-block', minWidth: '140px', maxWidth: '160px', flexShrink: 0 }} title={title}>
+39: <div
+40: onClick={() => setIsOpen(!isOpen)}
+41: style={{
+42: display: 'flex',
+43: alignItems: 'center',
+44: justifyContent: 'space-between',
+45: gap: '8px',
+46: padding: '15px 24px',
+47: backgroundColor: 'var(--sys-color-surface-variant)',
+48: borderRadius: 'var(--sys-radius-full)',
+49: cursor: 'pointer',
+50: border: '1px solid var(--sys-color-surface-variant)',
+51: color: 'var(--sys-color-on-surface)',
+52: fontWeight: '500',
+53: fontSize: '1rem',
+54: transition: 'all 0.2s ease',
+55: userSelect: 'none',
+56: boxShadow: 'var(--sys-elevation-1)',
+57: height: '100%'
+58: }}
+59: >
+60: <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{selectedOption?.label}</span>
+61: <span style={{
+62: display: 'flex',
+63: transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+64: transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+65: }}>
+66: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+67: </span>
+68: </div>
+69: 
+70: {isOpen && (
+71: <div className="animate-fade-in" style={{
+72: position: 'absolute',
+73: bottom: '100%',
+74: left: 0,
+75: marginBottom: '12px',
+76: minWidth: '100%',
+77: backgroundColor: 'var(--sys-color-surface)',
+78: border: '1px solid var(--sys-color-surface-variant)',
+79: borderRadius: '24px',
+80: boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+81: zIndex: 1000,
+82: overflow: 'hidden'
+83: }}>
+84: {options.map((opt, i) => (
+85: <div
+86: key={i}
+87: onClick={() => {
+88: onChange(opt.value);
+89: setIsOpen(false);
+90: }}
+91: style={{
+92: padding: '14px 24px',
+93: cursor: 'pointer',
+94: whiteSpace: 'nowrap',
+95: backgroundColor: value === opt.value ? 'var(--sys-color-primary-container)' : 'transparent',
+96: color: value === opt.value ? 'var(--sys-color-primary)' : 'var(--sys-color-on-surface)',
+97: fontWeight: value === opt.value ? 'bold' : 'normal',
+98: transition: 'background-color 0.2s'
+99: }}
+100: onMouseEnter={(e) => {
+101: if (value !== opt.value) e.currentTarget.style.backgroundColor = 'var(--sys-color-surface-variant)';
+102: }}
+103: onMouseLeave={(e) => {
+104: if (value !== opt.value) e.currentTarget.style.backgroundColor = 'transparent';
+105: }}
+106: >
+107: {opt.label}
+108: </div>
+109: ))}
+110: </div>
+111: )}
+112: </div>
+113: );
+114: };
+115: 
+116: class ErrorBoundary extends React.Component {
+117: constructor(props) {
+118: super(props);
+119: this.state = { hasError: false, error: null };
+120: }
+121: static getDerivedStateFromError(error) {
+122: return { hasError: true, error };
+123: }
+124: componentDidCatch(error, errorInfo) {
+125: console.error("Caught by ErrorBoundary:", error, errorInfo);
+126: }
+127: render() {
+128: if (this.state.hasError) {
+129: return <span style={{ color: 'red', fontSize: '12px' }}>[娓叉煋閿欒: 鍙兘鏄炕璇戞彃浠跺紩璧风殑搴曞眰鍐茬獊锛屽凡瀹夊叏闅旂]</span>;
+130: }
+131: return this.props.children;
+132: }
+133: }
+134: 
+135: function App() {
+136: const [messages, setMessages] = useState([{ role: 'agent', content: '欢迎使用 Ai Multi Agent 智能控制台。系统已就绪，请输入您的需求？' }]);
+137: const [input, setInput] = useState('');
+138: const [isLoading, setIsLoading] = useState(false);
+139: const [showClearConfirm, setShowClearConfirm] = useState(false);
+140: const [actionLogs, setActionLogs] = useState([]);
+141: const [activeWorkflow, setActiveWorkflow] = useState([]);
+142: const [todos, setTodos] = useState([]);
+143: const [enteredSystem, setEnteredSystem] = useState(false);
+144: const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+145: const [isWorkflowPanelOpen, setIsWorkflowPanelOpen] = useState(true);
+146: const [isWorkflowEditorOpen, setIsWorkflowEditorOpen] = useState(false);
+147: const [isPlanPanelOpen, setIsPlanPanelOpen] = useState(false);
+148: const [currentPlanContent, setCurrentPlanContent] = useState("");
+149: const [backendError, setBackendError] = useState(false);
+150: const [sessionId, setSessionId] = useState('default');
+151: const [workflowMode, setWorkflowMode] = useState('deep_thought');
+152: const [sessions, setSessions] = useState([]);
+153: const [userLocation, setUserLocation] = useState(null);
+154: const location = useLocation();
+155: const chatContainerRef = useRef(null);
+156: 
+157: // Fetch Geolocation
+158: useEffect(() => {
+159: if ("geolocation" in navigator) {
+160: navigator.geolocation.getCurrentPosition(
+161: (position) => {
+162: setUserLocation({
+163: lat: position.coords.latitude,
+164: lon: position.coords.longitude
+165: });
+166: },
+167: (error) => {
+168: console.warn("Geolocation warning:", error.message);
+169: },
+170: { timeout: 10000 }
+171: );
+172: }
+173: }, []);
+174: 
+175: // Auto-scroll to bottom when messages change or loading state changes
+176: const scrollToBottom = (behavior = 'smooth') => {
+177: setTimeout(() => {
+178: if (chatContainerRef.current) {
+179: chatContainerRef.current.scrollTo({
+180: top: chatContainerRef.current.scrollHeight,
+181: behavior
+182: });
+183: }
+184: }, 50);
+185: };
+186: 
+187: useEffect(() => {
+188: scrollToBottom('smooth');
+189: }, [messages, isLoading, actionLogs, enteredSystem]);
+190: 
+191: // Model Management
+192: const [models, setModels] = useState([]);
+193: const [activeProvider, setActiveProvider] = useState('');
+194: const [showModelManager, setShowModelManager] = useState(false);
+195: const [newApiKey, setNewApiKey] = useState('');
+196: const [skills, setSkills] = useState([]);
+197: const [enabledSkills, setEnabledSkills] = useState([]);
+198: const [currentView, setCurrentView] = useState('chat'); // 'chat' or 'skills'
+199: const [skillTab, setSkillTab] = useState('local'); // 'local' or 'market'
+200: const [marketSkills, setMarketSkills] = useState([]);
+201: const [searchQuery, setSearchQuery] = useState('');
+202: const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+203: const [importCode, setImportCode] = useState(`def my_custom_tool(param1: str):
+204: return f"Processed {param1}"
+205: 
+206: SCHEMA = {
+207: "name": "my_custom_tool",
+208: "description": "A custom tool that does something.",
+209: "parameters": {
+210: "type": "object",
+211: "properties": {
+212: "param1": {"type": "string", "description": "The input"}
+213: },
+214: "required": ["param1"]
+215: }
+216: }`);
+217: const [importError, setImportError] = useState('');
+218: 
+219: const fetchMarketSkills = async () => {
+220: try {
+221: const res = await fetch(`http://${window.location.hostname}:8000/api/skills/market`);
+222: if (res.ok) {
+223: const data = await res.json();
+224: setMarketSkills(data.market_skills || []);
+225: }
+226: } catch (e) {
+227: console.log("Failed to fetch market skills:", e);
+228: }
+229: };
+230: 
+231: useEffect(() => {
+232: if (currentView === 'skills' && skillTab === 'market' && marketSkills.length === 0) {
+233: fetchMarketSkills();
+234: }
+235: }, [currentView, skillTab]);
+236: 
+237: const handleDownloadSkill = async (skillId) => {
+238: try {
+239: const res = await fetch(`http://${window.location.hostname}:8000/api/skills/download`, {
+240: method: 'POST',
+241: headers: { 'Content-Type': 'application/json' },
+242: body: JSON.stringify({ skill_id: skillId })
+243: });
+244: if (res.ok) {
+245: alert("涓嬭浇骞跺畨瑁呮垚鍔燂紒");
+246: fetchSkills();
+247: setSkillTab('local');
+248: } else {
+249: const err = await res.json();
+250: alert(`瀹夎澶辫触: ${err.detail}`);
+251: }
+252: } catch (e) {
+253: alert(`缃戠粶閿欒: ${e.message}`);
+254: }
+255: };
+256: 
+257: const handleImportSkill = async () => {
+258: setImportError('');
+259: try {
+260: const res = await fetch(`http://${window.location.hostname}:8000/api/skills/import`, {
+261: method: 'POST',
+262: headers: { 'Content-Type': 'application/json' },
+263: body: JSON.stringify({ code: importCode })
+264: });
+265: if (res.ok) {
+266: alert("鑷畾涔夋妧鑳芥敞鍏ユ垚鍔燂紒");
+267: setIsImportModalOpen(false);
+268: fetchSkills();
+269: setSkillTab('local');
+270: } else {
+271: const err = await res.json();
+272: setImportError(err.detail);
+273: }
+274: } catch (e) {
+275: setImportError(`缃戠粶閿欒: ${e.message}`);
+276: }
+277: };
+278: 
+279: // Fetch Skills
+280: const fetchSkills = async () => {
+281: try {
+282: const res = await fetch(`http://${window.location.hostname}:8000/api/skills`);
+283: if (res.ok) {
+284: const data = await res.json();
+285: const fetchedSkills = data.skills || [];
+286: setSkills(fetchedSkills);
+287: // Default to all enabled
+288: setEnabledSkills(fetchedSkills.map(s => s.function.name));
+289: }
+290: } catch (e) {
+291: console.log("Failed to fetch skills:", e);
+292: }
+293: };
+294: 
+295: // History Management
+296: const clearHistory = async () => {
+297: try {
+298: const res = await fetch(`http://${window.location.hostname}:8000/api/history/clear/${sessionId}`, {
+299: method: 'POST'
+300: });
+301: if (res.ok) {
+302: setMessages([{ role: 'agent', content: '欢迎使用 Ai Multi Agent 智能控制台。系统已就绪，请输入您的需求？' }]);
+303: setTodos([]);
+304: setActionLogs([]);
+305: setActiveWorkflow([]);
+306: // Switch to a brand new session so the cleared one is fully abandoned
+307: setSessionId(Date.now().toString());
+308: await fetchSessions();
+309: }
+310: } catch (e) {
+311: console.log("Failed to clear history:", e);
+312: }
+313: };
+314: 
+315: const fetchHistory = async (sid) => {
+316: try {
+317: const res = await fetch(`http://${window.location.hostname}:8000/api/history/${sid}`);
+318: if (res.ok) {
+319: const data = await res.json();
+320: if (data.history && data.history.length > 0) {
+321: setMessages([
+322: { role: 'agent', content: '欢迎使用 Ai Multi Agent 智能控制台。系统已就绪，请输入您的需求？' },
+323: ...data.history
+324: ]);
+325: } else {
+326: setMessages([{ role: 'agent', content: '欢迎使用 Ai Multi Agent 智能控制台。系统已就绪，请输入您的需求？'}]);
+327: }
+328: setTimeout(() => scrollToBottom('auto'), 100);
+329: }
+330: } catch (e) {
+331: console.log("Failed to fetch history:", e);
+332: setBackendError(true);
+333: }
+334: };
+335: 
+336: const fetchSessions = async () => {
+337: try {
+338: const res = await fetch(`http://${window.location.hostname}:8000/api/sessions`);
+339: if (res.ok) {
+340: const data = await res.json();
+341: setSessions(data.sessions || []);
+342: }
+343: } catch (e) {
+344: console.log("Failed to fetch sessions:", e);
+345: }
+346: };
+347: 
+348: const fetchModels = async () => {
+349: try {
+350: const res = await fetch(`http://${window.location.hostname}:8000/api/models`);
+351: const data = await res.json();
+352: let loadedModels = data.models || [];
+353: setModels(loadedModels);
+354: if (loadedModels.length > 0 && !activeProvider) {
+355: setActiveProvider(loadedModels[0].provider);
+356: }
+357: setBackendError(false);
+358: } catch (e) {
+359: console.log("Failed to fetch models");
+360: setModels([]);
+361: setBackendError(true);
+362: }
+363: };
+364: 
+365: useEffect(() => {
+366: fetchModels();
+367: fetchSessions();
+368: fetchSkills();
+369: fetchHistory(sessionId);
+370: }, []);
+371: 
+372: useEffect(() => {
+373: fetchHistory(sessionId);
+374: }, [sessionId]);
+375: 
+376: const handleNewChat = () => {
+377: const newId = Date.now().toString();
+378: setSessionId(newId);
+379: setMessages([{ role: 'agent', content: '欢迎使用 Ai Multi Agent 智能控制台。系统已就绪，请输入您的需求？'}]);
+380: setTodos([]);
+381: setActionLogs([]);
+382: setActiveWorkflow([]);
+383: setCurrentView('chat');
+384: };
+385: 
+386: const handleAddKey = async () => {
+387: if (!newApiKey) return;
+388: try {
+389: await fetch(`http://${window.location.hostname}:8000/api/models/add`, {
+390: method: 'POST',
+391: headers: { 'Content-Type': 'application/json' },
+392: body: JSON.stringify({ api_key: newApiKey })
+393: });
+394: setNewApiKey('');
+395: fetchModels();
+396: } catch (e) {
+397: alert("无法连接到后端，请确认 server.py 正在运行。");
+398: }
+399: };
+400: 
+401: const handleRemoveKey = async (provider) => {
+402: try {
+403: await fetch(`http://${window.location.hostname}:8000/api/models/remove`, {
+404: method: 'POST',
+405: headers: { 'Content-Type': 'application/json' },
+406: body: JSON.stringify({ provider })
+407: });
+408: if (activeProvider === provider) {
+409: setActiveProvider('');
+410: }
+411: fetchModels();
+412: } catch (e) {
+413: alert("无法连接到后端，请确认 server.py 正在运行。");
+414: }
+415: };
+416: 
+417: const handleUpdateAlias = async (provider, alias) => {
+418: try {
+419: await fetch(`http://${window.location.hostname}:8000/api/models/alias`, {
+420: method: 'POST',
+421: headers: { 'Content-Type': 'application/json' },
+422: body: JSON.stringify({ provider, alias })
+423: });
+424: fetchModels();
+425: } catch (e) {
+426: alert("无法连接到后端，请确认 server.py 正在运行。");
+427: }
+428: };
+429: 
+430: const [editingAliasProvider, setEditingAliasProvider] = useState(null);
+431: const [editingAliasValue, setEditingAliasValue] = useState("");
+432: 
+433: const handleStreamResponse = async (res) => {
+434: const reader = res.body.getReader();
+435: const decoder = new TextDecoder();
+436: let buffer = "";
+437: 
+438: while (true) {
+439: const { done, value } = await reader.read();
+440: if (done) break;
+441: 
+442: buffer += decoder.decode(value, { stream: true });
+443: const lines = buffer.split('\n');
+444: buffer = lines.pop();
+445: 
+446: for (const line of lines) {
+447: if (!line.trim()) continue;
+448: const data = JSON.parse(line);
+449: 
+450: if (data.type === 'log') {
+451: setActionLogs(prev => [...prev, data.log]);
+452: } else if (data.type === 'workflow') {
+453: setActiveWorkflow(prev => {
+454: const existingIdx = prev.findIndex(n => n.node === data.node);
+455: if (existingIdx !== -1) {
+456: const next = [...prev];
+457: next[existingIdx].state = data.state;
+458: return next;
+459: }
+460: return [...prev, { node: data.node, state: data.state }];
+461: });
+462: } else if (data.status === 'done') {
+463: setMessages(prev => {
+464: const newMsg = { role: 'agent', content: data.plan_content || data.response, type: data.type, routed_by: data.routed_by };
+465: if (activeWorkflow.length > 0 && data.routed_by === 'Cloud API') {
+466: newMsg.workflow = [...activeWorkflow];
+467: }
+468: return [...prev, newMsg];
+469: });
+470: if (data.type === 'plan') {
+471: // Display plan in sidebar and save content
+472: setCurrentPlanContent(data.plan_content || data.response);
+473: setIsPlanPanelOpen(true);
+474: }
+475: }
+476: }
+477: }
+478: };
+479: 
+480: const sendMessage = async (customMsg = null, isEscalation = false) => {
+481: const isEvent = customMsg && typeof customMsg === 'object' && customMsg.nativeEvent;
+482: const textToSend = (!isEvent && typeof customMsg === 'string') ? customMsg : input;
+483: if (!textToSend || !textToSend.trim() || isLoading) {
+484: return;
+485: }
+486: 
+487: if (!customMsg) {
+488: setMessages(prev => [...prev, { role: 'user', content: textToSend }]);
+489: setInput('');
+490: } else {
+491: setMessages(prev => [...prev, { role: 'user', content: '🚀 [用户操作] 启动深度工作流下钻分析...' }]);
+492: }
+493: 
+494: setIsLoading(true);
+495: setActionLogs([]);
+496: setActiveWorkflow([]);
+497: 
+498: try {
+499: const res = await fetch(`http://${window.location.hostname}:8000/api/chat`, {
+500: method: 'POST',
+501: headers: { 'Content-Type': 'application/json' },
+502: body: JSON.stringify({ message: textToSend, provider: activeProvider, is_approved: false, session_id: sessionId, is_escalation: isEscalation, location: userLocation, enabled_skills: enabledSkills, workflow_mode: workflowMode })
+503: });
+504: if (!res.ok) {
+505: const errData = await res.json();
+506: throw new Error(errData.detail || "鍚庣璇锋眰澶辫触");
+507: }
+508: await handleStreamResponse(res);
+509: } catch (e) {
+510: setMessages(prev => [...prev, { role: 'agent', content: `閿欒: ${e.message}` }]);
+511: } finally {
+512: setIsLoading(false);
+513: setActionLogs([]);
+514: // setActiveWorkflow([]); // Don't clear it, so it remains visible
+515: if (messages.length === 1) fetchSessions();
+516: }
+517: };
+518: 
+519: const approvePlan = async () => {
+520: setIsLoading(true);
+521: setActionLogs([]);
+522: try {
+523: const res = await fetch(`http://${window.location.hostname}:8000/api/chat`, {
+524: method: 'POST',
+525: headers: { 'Content-Type': 'application/json' },
+526: body: JSON.stringify({ message: "", provider: activeProvider, is_approved: true, session_id: sessionId, workflow_mode: workflowMode })
+527: });
+528: setIsPlanPanelOpen(false);
+529: await handleStreamResponse(res);
+530: } catch (e) {
+531: alert("Error approving plan");
+532: } finally {
+533: setIsLoading(false);
+534: setActionLogs([]);
+535: }
+536: };
+537: 
+538: const handleEscalate = () => {
+539: const lastUserMsg = [...messages].reverse().find(m => m.role === 'user');
+540: if (lastUserMsg) {
+541: // the actual text might be "馃殌 [鐢ㄦ埛鎿嶄綔] 鍚姩..." if clicked twice, but let's just send the actual content
+542: let text = lastUserMsg.content;
+543: if (text.includes('启动深度工作流下钻')) {
+544: // find the one before it
+545: const allUserMsgs = messages.filter(m => m.role === 'user' && !m.content.includes('启动深度工作流下钻'));
+546: text = allUserMsgs.length > 0 ? allUserMsgs[allUserMsgs.length - 1].content : '';
+547: }
+548: if (text) {
+549: sendMessage(text, true);
+550: }
+551: }
+552: };
+553: 
+554: // Antigravity Code Block Renderer
+555: const MarkdownRenderer = ({ content, type }) => {
+556: if (type === 'plan') {
+557: return (
+558: <div className="plan-block">
+559: <p style={{ color: 'var(--sys-color-primary)', fontWeight: '500' }}>🚀 架构计划已生成，请在右侧文档面板审查。</p>
+560: </div>
+561: );
+562: }
+563: 
+564: // Parse ECharts and Mermaid
+565: let renderedContent = content || "";
+566: let echartsOptions = null;
+567: let mermaidChart = null;
+568: 
+569: const echartsMatch = /<ECHARTS_DATA>([\s\S]*?)<\/ECHARTS_DATA>/.exec(renderedContent);
+570: if (echartsMatch) {
+571: try {
+572: const payload = JSON.parse(echartsMatch[1]);
+573: 
+574: let seriesData = [];
+575: if (payload.type === 'pie') {
+576: seriesData = payload.dataset.map((val, idx) => ({ value: val, name: payload.labels[idx] }));
+577: } else {
+578: seriesData = payload.dataset;
+579: }
+580: 
+581: echartsOptions = {
+582: title: { text: payload.title, textStyle: { color: '#e0e0e0' } },
+583: tooltip: {},
+584: backgroundColor: 'transparent',
+585: textStyle: { color: '#e0e0e0' },
+586: xAxis: payload.type !== 'pie' ? { data: payload.labels, axisLabel: { color: '#e0e0e0' } } : undefined,
+587: yAxis: payload.type !== 'pie' ? { axisLabel: { color: '#e0e0e0' } } : undefined,
+588: series: [{
+589: type: payload.type,
+590: data: seriesData,
+591: itemStyle: payload.type === 'pie' ? { borderRadius: 5 } : undefined
+592: }]
+593: };
+594: renderedContent = renderedContent.replace(echartsMatch[0], '');
+595: } catch (e) {
+596: console.error("Failed to parse ECharts data", e);
+597: }
+598: }
+599: 
+600: const mermaidMatch = /<MERMAID_MINDMAP>([\s\S]*?)<\/MERMAID_MINDMAP>/.exec(renderedContent);
+601: if (mermaidMatch) {
+602: mermaidChart = mermaidMatch[1];
+603: renderedContent = renderedContent.replace(mermaidMatch[0], '');
+604: }
+605: 
+606: return (
+607: <div className="markdown-body notranslate" translate="no">
+608: <ReactMarkdown
+609: remarkPlugins={[remarkGfm]}
+610: components={{
+611: code({ node, inline, className, children, ...props }) {
+612: const match = /language-(\w+)/.exec(className || '')
+613: return !inline && match ? (
+614: <div style={{ borderRadius: '8px', overflow: 'hidden' }}>
+615: <div className="code-header">
+616: <div className="mac-dots">
+617: <div className="red"></div>
+618: <div className="yellow"></div>
+619: <div className="green"></div>
+620: </div>
+621: {match[1]}
+622: </div>
+623: <SyntaxHighlighter
+624: {...props}
+625: children={String(children).replace(/\n$/, '')}
+626: style={vscDarkPlus}
+627: language={match[1]}
+628: PreTag="div"
+629: customStyle={{ margin: 0, borderTopLeftRadius: 0, borderTopRightRadius: 0 }}
+630: showLineNumbers={true}
+631: />
+632: </div>
+633: ) : (
+634: <code {...props} className={className} style={{ backgroundColor: 'rgba(128,128,128,0.2)', padding: '2px 4px', borderRadius: '4px' }}>
+635: {children}
+636: </code>
+637: )
+638: }
+639: }}
+640: >
+641: {renderedContent}
+642: </ReactMarkdown>
+643: 
+644: {echartsOptions && (
+645: <div style={{ marginTop: '16px', padding: '16px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
+646: <ReactECharts option={echartsOptions} theme="dark" style={{ height: '350px' }} />
+647: </div>
+648: )}
+649: 
+650: {mermaidChart && (
+651: <MermaidChart chart={mermaidChart} />
+652: )}
+653: </div>
+654: );
+655: };
+656: 
+657: if (!enteredSystem) {
+658: return (
+659: <div className="app-container" style={{ alignItems: 'center', justifyContent: 'center' }}>
+660: <div className="card glass animate-fade-in" style={{ width: '100%', maxWidth: '480px', textAlign: 'center', padding: '40px' }}>
+661: <Sparkles size={48} color="var(--sys-color-primary)" style={{ marginBottom: '24px' }} />
+662: <h1 style={{ marginBottom: '8px' }}>澶╅煬 (Ai Multi Agent)</h1>
+663: <p style={{ marginBottom: '32px', color: 'var(--sys-color-on-surface-variant)' }}>高度自治的多智能体指挥控制台。</p>
+664: 
+665: <button className="btn-primary" onClick={() => setEnteredSystem(true)} style={{ width: '100%', padding: '12px' }}>杩涘叆绯荤粺</button>
+666: </div>
+667: </div>
+668: );
+669: }
+670: 
+671: return (
+672: <div className="app-container notranslate" translate="no" style={{ display: 'flex', flexDirection: 'column' }}>
+673: <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+674: {/* Sidebar / Dashboard */}
+675: <div className={`sidebar glass ${isSidebarOpen ? '' : 'collapsed'}`} style={{ transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)', width: isSidebarOpen ? '280px' : '64px', padding: isSidebarOpen ? '24px' : '24px 8px', overflow: 'hidden', opacity: 1, position: 'relative', display: 'flex', flexDirection: 'column' }}>
+676: <div style={{ display: 'flex', alignItems: 'center', gap: '12px', justifyContent: isSidebarOpen ? 'space-between' : 'center', whiteSpace: 'nowrap', overflow: 'hidden' }}>
+677: <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+678: <div style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: 'var(--sys-color-primary-container)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+679: <Sparkles size={20} color="var(--sys-color-on-primary-container)" />
+680: </div>
+681: <div style={{ display: isSidebarOpen ? 'block' : 'none', opacity: isSidebarOpen ? 1 : 0, transition: 'opacity 0.2s' }}>
+682: <h2 style={{ fontSize: '1.25rem', margin: 0 }}>澶╅煬 Ai Multi Agent</h2>
+683: <p style={{ margin: 0, fontSize: '0.85rem' }}><span className={`badge badge-${activeProvider || 'unknown'}`}>{activeProvider || '未配置模型'}</span></p>
+684: </div>
+685: </div>
+686: {isSidebarOpen && (
+687: <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--sys-color-on-surface)' }} onClick={() => setShowModelManager(true)}>
+688: <Settings size={20} />
+689: </button>
+690: )}
+691: </div>
+692: 
+693: <hr style={{ border: 'none', borderTop: '1px solid var(--sys-color-surface-variant)', margin: '24px 0', flexShrink: 0 }} />
+694: 
+695: <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', flex: 1, overflowY: 'auto', overflowX: 'hidden', paddingRight: isSidebarOpen ? '8px' : '0', width: '100%', paddingBottom: '24px' }}>
+696: 
+697: {/* Navigations */}
+698: <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+699: <NavLink to="/" className={({ isActive }) => isActive ? "btn-primary active-link" : "btn-secondary"} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: isSidebarOpen ? 'flex-start' : 'center', gap: '12px', padding: '12px', border: 'none' }} title="鏅鸿兘瀵硅瘽">
+700: <Bot size={20} style={{ flexShrink: 0 }} />
+701: <span style={{ maxWidth: isSidebarOpen ? '200px' : '0px', opacity: isSidebarOpen ? 1 : 0, overflow: 'hidden', whiteSpace: 'nowrap', transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)' }}>鏅鸿兘瀵硅瘽 (Chat)</span>
+702: </NavLink>
+703: <NavLink to="/dashboard" className={({ isActive }) => isActive ? "btn-primary active-link" : "btn-secondary"} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: isSidebarOpen ? 'flex-start' : 'center', gap: '12px', padding: '12px', border: 'none' }} title="鏁版嵁鐪嬫澘">
+704: <Activity size={20} style={{ flexShrink: 0 }} />
+705: <span style={{ maxWidth: isSidebarOpen ? '200px' : '0px', opacity: isSidebarOpen ? 1 : 0, overflow: 'hidden', whiteSpace: 'nowrap', transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)' }}>鏁版嵁鐪嬫澘 (Dashboard)</span>
+706: </NavLink>
+707: <NavLink to="/history" className={({ isActive }) => isActive ? "btn-primary active-link" : "btn-secondary"} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: isSidebarOpen ? 'flex-start' : 'center', gap: '12px', padding: '12px', border: 'none' }} title="杩愯璁板綍">
+708: <History size={20} style={{ flexShrink: 0 }} />
+709: <span style={{ maxWidth: isSidebarOpen ? '200px' : '0px', opacity: isSidebarOpen ? 1 : 0, overflow: 'hidden', whiteSpace: 'nowrap', transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)' }}>杩愯璁板綍 (History)</span>
+710: </NavLink>
+711: <NavLink to="/workflows" className={({ isActive }) => isActive ? "btn-primary active-link" : "btn-secondary"} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: isSidebarOpen ? 'flex-start' : 'center', gap: '12px', padding: '12px', border: 'none' }} title="宸ヤ綔娴佸簱">
+712: <Blocks size={20} style={{ flexShrink: 0 }} />
+713: <span style={{ maxWidth: isSidebarOpen ? '200px' : '0px', opacity: isSidebarOpen ? 1 : 0, overflow: 'hidden', whiteSpace: 'nowrap', transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)' }}>宸ヤ綔娴佸簱 (Workflows)</span>
+714: </NavLink>
+715: <NavLink to="/reports" className={({ isActive }) => isActive ? "btn-primary active-link" : "btn-secondary"} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: isSidebarOpen ? 'flex-start' : 'center', gap: '12px', padding: '12px', border: 'none' }} title="鎶ュ憡涓績">
+716: <FileText size={20} style={{ flexShrink: 0 }} />
+717: <span style={{ maxWidth: isSidebarOpen ? '200px' : '0px', opacity: isSidebarOpen ? 1 : 0, overflow: 'hidden', whiteSpace: 'nowrap', transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)' }}>鎶ュ憡涓績 (Reports)</span>
+718: </NavLink>
+719: <NavLink to="/skills" className={({ isActive }) => isActive ? "btn-primary active-link" : "btn-secondary"} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: isSidebarOpen ? 'flex-start' : 'center', gap: '12px', padding: '12px', marginTop: '8px', border: 'none' }} title="技能大厅">
+720: <span style={{ fontSize: '18px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '20px' }}>馃О</span>
+721: <span style={{ maxWidth: isSidebarOpen ? '200px' : '0px', opacity: isSidebarOpen ? 1 : 0, overflow: 'hidden', whiteSpace: 'nowrap', transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)' }}>技能大厅 (Skills)</span>
+722: </NavLink>
+723: </div>
+724: 
+725: {/* Todo List */}
+726: <div>
+727: <h3 style={{ fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '16px', color: 'var(--sys-color-on-surface-variant)', display: 'flex', alignItems: 'center', gap: '8px', justifyContent: isSidebarOpen ? 'flex-start' : 'center', whiteSpace: 'nowrap', overflow: 'hidden' }} title="浠诲姟娓呭崟">
+728: <LayoutTemplate size={20} style={{ flexShrink: 0 }} />
+729: <span style={{ maxWidth: isSidebarOpen ? '200px' : '0px', opacity: isSidebarOpen ? 1 : 0, overflow: 'hidden', whiteSpace: 'nowrap', transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)' }}>浠诲姟娓呭崟 (Todo)</span>
+730: </h3>
+731: <div style={{ maxHeight: isSidebarOpen ? '1000px' : '0px', opacity: isSidebarOpen ? 1 : 0, overflow: 'hidden', transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)' }}>
+732: <div className="card" style={{ padding: '16px', fontSize: '0.9rem' }}>
+733: {todos.length === 0 ? (
+734: <p style={{ margin: 0 }}>当前暂无任务规划。</p>
+735: ) : (
+736: <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+737: {todos.map((todo, idx) => (
+738: <label key={idx} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+739: <input type="checkbox" style={{ marginTop: '4px' }} disabled />
+740: <span style={{ color: 'var(--sys-color-on-surface)' }}>{todo}</span>
+741: </label>
+742: ))}
+743: </div>
+744: )}
+745: </div>
+746: </div>
+747: </div>
+748: 
+749: 
+750: 
+751: {/* History */}
+752: <div>
+753: <h3 style={{ fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '16px', color: 'var(--sys-color-on-surface-variant)', display: 'flex', alignItems: 'center', gap: '8px', justifyContent: isSidebarOpen ? 'flex-start' : 'center', whiteSpace: 'nowrap', overflow: 'hidden' }} title="浼氳瘽鍘嗗彶">
+754: <History size={20} style={{ flexShrink: 0 }} />
+755: <span style={{ maxWidth: isSidebarOpen ? '200px' : '0px', opacity: isSidebarOpen ? 1 : 0, overflow: 'hidden', whiteSpace: 'nowrap', transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)' }}>浼氳瘽鍘嗗彶 (History)</span>
+756: </h3>
+757: <div style={{ maxHeight: isSidebarOpen ? '2000px' : '0px', opacity: isSidebarOpen ? 1 : 0, overflow: 'hidden', transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)' }}>
+758: <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+759: <button
+760: className="btn-primary"
+761: onClick={handleNewChat}
+762: style={{ marginBottom: '8px', width: '100%', padding: '8px', fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', cursor: 'pointer' }}
+763: >
+764: ➕ 新开对话
+765: </button>
+766: {sessions.map((sess, idx) => (
+767: <div
+768: key={idx}
+769: className="card"
+770: onClick={() => { setSessionId(sess.session_id); setCurrentView('chat'); }}
+771: style={{
+772: padding: '12px',
+773: fontSize: '0.9rem',
+774: cursor: 'pointer',
+775: border: sessionId === sess.session_id ? '1px solid var(--sys-color-primary)' : '1px solid transparent',
+776: backgroundColor: sessionId === sess.session_id ? 'var(--sys-color-primary-container)' : 'var(--sys-color-surface)',
+777: color: sessionId === sess.session_id ? 'var(--sys-color-on-primary-container)' : 'var(--sys-color-on-surface)',
+778: transition: 'all 0.2s'
+779: }}
+780: >
+781: <p style={{ margin: 0, fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sess.title}</p>
+782: <p style={{ margin: 0, fontSize: '0.75rem', opacity: 0.7 }}>{new Date(sess.created_at).toLocaleString()}</p>
+783: </div>
+784: ))}
+785: 
+786: <button
+787: className="btn-secondary"
+788: onClick={() => setShowClearConfirm(true)}
+789: style={{ marginTop: '12px', width: '100%', padding: '6px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', border: '1px solid var(--sys-color-error)', color: 'var(--sys-color-error)', background: 'transparent', cursor: 'pointer' }}
+790: >
+791: 🗑️ 清空当前对话
+792: </button>
+793: </div>
+794: </div>
+795: </div>
+796: 
+797: </div>
+798: 
+799: <div style={{ padding: '16px', display: 'flex', justifyContent: 'center' }}>
+800: {isSidebarOpen ? (
+801: <button className="btn-secondary" onClick={() => setIsSidebarOpen(false)} style={{ width: '100%', padding: '8px' }}>
+802: 收起侧边栏 ◀
+803: </button>
+804: ) : (
+805: <button className="btn-secondary" onClick={() => setIsSidebarOpen(true)} style={{ padding: '8px 12px', display: 'flex', justifyContent: 'center' }} title="展开侧边栏">
+806: ▶              </button>
+807: )}
+808: </div>
+809: </div>
+810: 
+811: {/* Main Content Area */}
+812: <div className="main-content" style={{ display: 'flex', flexDirection: 'row', overflow: 'hidden' }}>
+813: 
+814: {/* Left Column: Chat or Skills */}
+815: <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, position: 'relative' }}>
+816: 
+817: {/* Floating reopen button */}
+818: {!isWorkflowPanelOpen && location.pathname === '/' && !isWorkflowEditorOpen && (
+819: <button
+820: onClick={() => setIsWorkflowPanelOpen(true)}
+821: className="glass"
+822: style={{
+823: position: 'absolute',
+824: top: '16px',
+825: right: '16px',
+826: zIndex: 100,
+827: display: 'flex',
+828: alignItems: 'center',
+829: gap: '8px',
+830: padding: '8px 16px',
+831: borderRadius: '20px',
+832: border: '1px solid var(--sys-color-surface-variant)',
+833: cursor: 'pointer',
+834: backgroundColor: 'var(--sys-color-surface)',
+835: boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+836: animation: 'fadeIn 0.3s ease forwards'
+837: }}
+838: >
+839: <Activity size={16} color="var(--sys-color-primary)" />
+840: <span style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>展开流转状态</span>
+841: {activeWorkflow.some(w => w.state === 'running') && (
+842: <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#ffc107', marginLeft: '4px', animation: 'pulse 1.5s infinite' }} />
+843: )}
+844: </button>
+845: )}
+846: 
+847: {/* Floating Editor toggle button */}
+848: {location.pathname === '/' && (
+849: <button
+850: onClick={() => setIsWorkflowEditorOpen(!isWorkflowEditorOpen)}
+851: className="glass"
+852: style={{
+853: position: 'absolute',
+854: top: '16px',
+855: right: !isWorkflowPanelOpen && !isWorkflowEditorOpen ? '160px' : '16px',
+856: zIndex: 100,
+857: display: 'flex',
+858: alignItems: 'center',
+859: gap: '8px',
+860: padding: '8px 16px',
+861: borderRadius: '20px',
+862: border: '1px solid var(--sys-color-primary)',
+863: cursor: 'pointer',
+864: backgroundColor: isWorkflowEditorOpen ? 'var(--sys-color-primary)' : 'var(--sys-color-surface)',
+865: color: isWorkflowEditorOpen ? 'var(--sys-color-on-primary)' : 'var(--sys-color-primary)',
+866: boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+867: animation: 'fadeIn 0.3s ease forwards',
+868: transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)'
+869: }}
+870: >
+871: <Settings size={16} />
+872: <span style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>
+873: {isWorkflowEditorOpen ? '退出编辑' : '配置当前工作流'}
+874: </span>
+875: </button>
+876: )}
+877: 
+878: {/* Main content wrap for Routes */}
+879: <Routes>
+880: <Route path="/" element={
+881: <>
+882: {(() => {
+883: // Chat view only — Skills moved to /skills route
+884: return (
+885: <React.Fragment>
+886: 
+887: {backendError && (
+888: <div style={{ backgroundColor: 'var(--sys-color-error)', color: 'white', padding: '12px', textAlign: 'center', fontWeight: 'bold', zIndex: 100, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px' }}>
+889: <span>⚠️ 无法连接到核心系统。请确认后端服务 (server.py) 正在运行。</span>
+890: <button
+891: onClick={() => {
+892: setBackendError(false);
+893: fetchModels();
+894: fetchHistory();
+895: }}
+896: style={{ backgroundColor: 'white', color: 'var(--sys-color-error)', border: 'none', padding: '4px 12px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+897: >
+898: 绔嬪嵆閲嶈瘯
+899: </button>
+900: </div>
+901: )}
+902: 
+903: <div style={{ flex: 1, height: '100%', overflow: 'hidden', display: isWorkflowEditorOpen ? 'block' : 'none' }}>
+904: {isWorkflowEditorOpen && <WorkflowEditor sessionId={sessionId} />}
+905: </div>
+906: 
+907: <div style={{ flex: 1, display: isWorkflowEditorOpen ? 'none' : 'flex', flexDirection: 'column' }}>
+908: <ErrorBoundary>
+909: {messages.length === 0 ? (
+910: <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', opacity: 0.5 }}>
+911: <Bot size={64} style={{ marginBottom: '16px', color: 'var(--sys-color-primary)' }} />
+912: <h2>Ai Multi Agent 鏅鸿兘涓灑</h2>
+913: <p>请在下方输入指令。您可以通过侧边栏管理任务流、监控节点或配置云端模型。</p>
+914: </div>
+915: ) : (
+916: <>
+917: <div className="chat-container notranslate" translate="no" ref={chatContainerRef}>
+918: {messages.map((msg, idx) => (
+919: <div key={idx} className={`message ${msg.role} animate-fade-in`} style={{ maxWidth: msg.role === 'agent' ? '90%' : '80%' }}>
+920: <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', fontSize: '0.8rem', opacity: 0.7 }}>
+921: {msg.role === 'user' ? <User size={14} /> : <Bot size={14} />}
+922: {msg.role === 'user' ? '鐢ㄦ埛' : 'Ai Multi Agent 绯荤粺'}
+923: {msg.role === 'agent' && msg.routed_by && (
+924: <span style={{
+925: backgroundColor: msg.routed_by === 'NPU' ? '#1a73e8' : (msg.routed_by?.includes('GPU') ? '#0f9d58' : '#673ab7'),
+926: color: 'white',
+927: padding: '2px 6px',
+928: borderRadius: '4px',
+929: fontSize: '0.7rem',
+930: fontWeight: 'bold',
+931: marginLeft: 'auto'
+932: }}>
+933: {msg.routed_by === 'NPU' ? 'NPU' : (msg.routed_by?.includes('GPU') ? 'GPU' : 'AI')}
+934: </span>
+935: )}
+936: </div>
+937: 
+938: {/* Scheme A: Inline Workflow Stepper */}
+939: {msg.workflow && msg.workflow.length > 0 && (
+940: <ErrorBoundary>
+941: <div style={{ marginBottom: '16px', padding: '12px', backgroundColor: 'rgba(255, 255, 255, 0.05)', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
+942: <div style={{ fontSize: '0.75rem', color: 'var(--sys-color-primary)', fontWeight: 'bold', marginBottom: '8px', textTransform: 'uppercase' }}>Agent 鎬濊€冩祦杞妭鐐癸細</div>
+943: <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
+944: {msg.workflow.map((node, i) => (
+945: <React.Fragment key={i}>
+946: <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.85rem', color: node.state === 'done' ? 'var(--sys-color-primary)' : 'var(--sys-color-on-surface)' }}>
+947: {node.state === 'done' ? <span key="done">✅</span> : <span key="prog">🔄</span>} <span>{node.node}</span>
+948: </div>
+949: {i < msg.workflow.length - 1 && <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.8rem' }}>→</span>}
+950: </React.Fragment>
+951: ))}
+952: </div>
+953: </div>
+954: </ErrorBoundary>
+955: )}
+956: 
+957: <ErrorBoundary>
+958: <MarkdownRenderer content={msg.content} type={msg.type} />
+959: </ErrorBoundary>
+960: 
+961: {/* Escalation Button for GPU buffers */}
+962: {msg.role === 'agent' && msg.routed_by === 'GPU' && !msg.content.includes("非常抱歉") && !msg.content.includes("对不起") && !msg.content.includes("拒绝") && (
+963: <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'flex-start' }}>
+964: <button className="btn-primary" onClick={handleEscalate} style={{ fontSize: '0.85rem', padding: '6px 16px', display: 'flex', gap: '6px', alignItems: 'center', backgroundColor: '#673ab7', borderColor: '#673ab7' }}>
+965: <Sparkles size={14} /> 🚀 启动深度工作流下钻 (云端 API)
+966: </button>
+967: </div>
+968: )}
+969: </div>
+970: ))}
+971: {isLoading && (
+972: <div className="message agent animate-fade-in" style={{ maxWidth: '90%' }}>
+973: <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', fontSize: '0.8rem', opacity: 0.7 }}>
+974: <Bot size={14} /> Ai Multi Agent 绯荤粺
+975: </div>
+976: 
+977: {actionLogs.length > 0 ? (
+978: <div style={{ backgroundColor: 'rgba(0,0,0,0.8)', border: '1px solid #00ff9d', boxShadow: '0 0 10px rgba(0,255,157,0.2)', padding: '16px', borderRadius: '8px', fontFamily: 'monospace', fontSize: '0.85rem', whiteSpace: 'pre-wrap', lineHeight: '1.6' }}>
+979: <div style={{ color: '#00ff9d', fontWeight: 'bold', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid rgba(0,255,157,0.3)', paddingBottom: '8px' }}>
+980: <Activity size={14} className="animate-pulse" /> &lt; 深度运算与工具调用协议激活 /&gt;
+981: </div>
+982: {actionLogs.map((log, i) => (
+983: <div key={i} className="animate-fade-in" style={{ color: log.includes('error') ? '#ff5252' : '#d4d4d4', textShadow: '0 0 2px rgba(255,255,255,0.3)' }}>
+984: <span style={{ color: '#00ff9d', marginRight: '8px' }}>[SYSTEM]</span>{log}
+985: </div>
+986: ))}
+987: <div style={{ display: 'inline-flex', padding: 0, marginTop: '12px', alignItems: 'center', gap: '8px' }}>
+988: <span style={{ color: '#00ff9d' }}>_ </span>
+989: <span className="typing-indicator" style={{ padding: 0 }}>
+990: <span style={{ backgroundColor: '#00ff9d' }}></span><span style={{ backgroundColor: '#00ff9d' }}></span><span style={{ backgroundColor: '#00ff9d' }}></span>
+991: </span>
+992: </div>
+993: </div>
+994: ) : (
+995: <div style={{ padding: '12px', color: '#00ff9d', fontFamily: 'monospace', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '8px', opacity: 0.8 }}>
+996: <Activity size={14} className="animate-pulse" /> 连接神经元网络...
+997: </div>
+998: )}
+999: </div>
+1000: )}
+1001: {/* Messages scroller anchor */}
+1002: </div>
+1003: 
+1004: <div style={{ padding: '24px', backgroundColor: 'var(--sys-color-surface)', borderTop: '1px solid var(--sys-color-surface-variant)' }}>
+1005: <div style={{ display: 'flex', gap: '16px', maxWidth: '1200px', margin: '0 auto', alignItems: 'center' }}>
+1006: 
+1007: <CustomSelect
+1008: value={activeProvider}
+1009: onChange={setActiveProvider}
+1010: title="切换当值模型"
+1011: options={
+1012: models?.length === 0
+1013: ? [{ value: "", label: "未配置模型" }]
+1014: : models?.map(m => ({ value: m.provider, label: `${m.provider.toUpperCase()} (${m.model})` })) || []
+1015: }
+1016: />
+1017: 
+1018: <CustomSelect
+1019: value={workflowMode}
+1020: onChange={setWorkflowMode}
+1021: title="鍒囨崲鎬濈淮娣卞害妯″紡"
+1022: options={[
+1023: { value: 'standard', label: '⚡ 标准极速流' },
+1024: { value: 'deep_thought', label: '馃 鏍囧噯娣辨€濇祦' },
+1025: { value: 'expert_review', label: '🧐 专家审查流' },
+1026: { value: 'creative_brainstorm', label: '💡 发散风暴流' }
+1027: ]}
+1028: />
+1029: 
+1030: <input
+1031: type="text"
+1032: className="input-elegant"
+1033: style={{ flex: 1, minWidth: 0 }}
+1034: placeholder="请输入您的指令（简单的交由本地，复杂的交由云端）..."
+1035: value={input}
+1036: onChange={e => setInput(e.target.value)}
+1037: onKeyDown={e => e.key === 'Enter' && sendMessage()}
+1038: disabled={isLoading}
+1039: />
+1040: <ErrorBoundary>
+1041: <button className="btn-primary" onClick={(e) => sendMessage(null, false)} disabled={isLoading}>
+1042: {isLoading ? <span key="loading">发送中</span> : <span key="idle">发送</span>}
+1043: </button>
+1044: </ErrorBoundary>
+1045: </div>
+1046: </div>
+1047: </>
+1048: )}
+1049: </ErrorBoundary>
+1050: </div>
+1051: </React.Fragment>
+1052: );
+1053: })()}
+1054: </>
+1055: } />
+1056: <Route path="/skills" element={
+1057: <SkillsStore
+1058: skills={skills}
+1059: enabledSkills={enabledSkills}
+1060: setEnabledSkills={setEnabledSkills}
+1061: onImportSkill={() => { fetchSkills(); }}
+1062: />
+1063: } />
+1064: <Route path="/workflows" element={<Workflows />} />
+1065: <Route path="/workflows/editor" element={<WorkflowEditorPage />} />
+1066: <Route path="/dashboard" element={<Dashboard />} />
+1067: <Route path="/history" element={<RunHistory />} />
+1068: <Route path="/replay/:runId" element={<WorkflowReplay />} />
+1069: <Route path="/reports" element={<Reports />} />
+1070: </Routes>
+1071: </div>
+1072: 
+1073: {/* Dynamic Workflow Visualization Side Panel */}
+1074: <div className="glass" style={{
+1075: width: isWorkflowPanelOpen ? '400px' : '0px',
+1076: opacity: isWorkflowPanelOpen ? 1 : 0,
+1077: flexShrink: 0,
+1078: transform: isWorkflowPanelOpen ? 'scale(1)' : 'scale(0.8)',
+1079: transformOrigin: 'top right',
+1080: transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+1081: borderLeft: isWorkflowPanelOpen ? '1px solid var(--sys-color-surface-variant)' : 'none',
+1082: display: 'flex',
+1083: flexDirection: 'column',
+1084: backgroundColor: 'var(--sys-color-surface)',
+1085: overflow: 'hidden',
+1086: pointerEvents: isWorkflowPanelOpen ? 'auto' : 'none'
+1087: }}>
+1088: <div style={{ width: '400px', flex: 1, display: 'flex', flexDirection: 'column' }}>
+1089: <div style={{ padding: '16px', borderBottom: '1px solid var(--sys-color-surface-variant)', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
+1090: <Activity size={18} color="var(--sys-color-primary)" />
+1091: 执行流 (Execution)
+1092: <button
+1093: onClick={() => setIsWorkflowPanelOpen(false)}
+1094: style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--sys-color-on-surface)', opacity: 0.7 }}
+1095: title="收起工作流"
+1096: >
+1097: <X size={18} />
+1098: </button>
+1099: {activeWorkflow.some(w => w.state === 'running') && (
+1100: <span style={{ marginLeft: '8px', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.8rem', color: '#ffc107' }}>
+1101: <span className="typing-indicator" style={{ display: 'inline-flex', padding: 0 }}>
+1102: <span style={{ backgroundColor: '#ffc107', width: 6, height: 6 }}></span>
+1103: <span style={{ backgroundColor: '#ffc107', width: 6, height: 6 }}></span>
+1104: <span style={{ backgroundColor: '#ffc107', width: 6, height: 6 }}></span>
+1105: </span>
+1106: 执行中...
+1107: </span>
+1108: )}
+1109: </div>
+1110: 
+1111: <div style={{ flex: 1, position: 'relative' }}>
+1112: <WorkflowVisualizer activeWorkflow={activeWorkflow} />
+1113: </div>
+1114: </div>
+1115: </div>
+1116: 
+1117: {/* Dynamic Plan Panel Side Panel */}
+1118: <div className="glass" style={{
+1119: width: isPlanPanelOpen ? '450px' : '0px',
+1120: opacity: isPlanPanelOpen ? 1 : 0,
+1121: flexShrink: 0,
+1122: transform: isPlanPanelOpen ? 'scale(1)' : 'scale(0.8)',
+1123: transformOrigin: 'top right',
+1124: transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+1125: borderLeft: isPlanPanelOpen ? '1px solid var(--sys-color-surface-variant)' : 'none',
+1126: display: 'flex',
+1127: flexDirection: 'column',
+1128: backgroundColor: 'var(--sys-color-surface)',
+1129: overflow: 'hidden',
+1130: pointerEvents: isPlanPanelOpen ? 'auto' : 'none'
+1131: }}>
+1132: <div style={{ width: '450px', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+1133: <div style={{ padding: '16px', borderBottom: '1px solid var(--sys-color-surface-variant)', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: 'var(--sys-color-surface-variant)' }}>
+1134: <LayoutTemplate size={18} color="var(--sys-color-primary)" />
+1135: 瀹炴柦璁″垝瀹℃煡 (Plan Review)
+1136: <button
+1137: onClick={() => setIsPlanPanelOpen(false)}
+1138: style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--sys-color-on-surface)', opacity: 0.7 }}
+1139: title="鍏抽棴璁″垝闈㈡澘"
+1140: >
+1141: <X size={18} />
+1142: </button>
+1143: </div>
+1144: 
+1145: <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '24px' }}>
+1146: <div className="markdown-body">
+1147: <ReactMarkdown remarkPlugins={[remarkGfm]}>{currentPlanContent}</ReactMarkdown>
+1148: </div>
+1149: </div>
+1150: 
+1151: <div style={{ padding: '16px', borderTop: '1px solid var(--sys-color-surface-variant)', backgroundColor: 'var(--sys-color-surface)', display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+1152: <button className="btn-primary" style={{ backgroundColor: 'var(--sys-color-surface-variant)', color: 'var(--sys-color-on-surface)' }} onClick={() => setIsPlanPanelOpen(false)}>绋嶅悗鍐冲畾</button>
+1153: <button className="btn-primary" onClick={approvePlan}>✅ 批准执行 (Approve)</button>
+1154: </div>
+1155: </div>
+1156: </div>
+1157: </div>
+1158: 
+1159: {/* Custom Skill Import Modal */}
+1160: {isImportModalOpen && (
+1161: <div className="modal-overlay">
+1162: <div className="modal-content animate-fade-in" style={{ maxWidth: '800px', width: '90%' }}>
+1163: <button className="modal-close" onClick={() => setIsImportModalOpen(false)}><X size={24} /></button>
+1164: <h2 style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+1165: <Sparkles size={24} color="var(--sys-color-primary)" /> 导入自定义技能              </h2>
+1166: <p style={{ fontSize: '0.9rem', color: 'var(--sys-color-on-surface-variant)', marginBottom: '24px' }}>
+1167: 在此粘贴您自己编写的 Python 工具脚本。必须包含执行函数和符合 OpenAI Tool Call 规范的 schema 字典。系统将动态编译并注入，无需重启。              </p>
+1168: 
+1169: {importError && (
+1170: <div style={{ padding: '12px', backgroundColor: 'rgba(255,0,0,0.1)', color: 'var(--sys-color-error)', borderRadius: '8px', marginBottom: '16px', fontSize: '0.9rem' }}>
+1171: {importError}
+1172: </div>
+1173: )}
+1174: 
+1175: <textarea
+1176: className="input-elegant"
+1177: style={{ width: '100%', height: '350px', fontFamily: 'monospace', fontSize: '0.9rem', padding: '16px', backgroundColor: '#1e1e1e', color: '#d4d4d4', resize: 'vertical' }}
+1178: value={importCode}
+1179: onChange={e => setImportCode(e.target.value)}
+1180: spellCheck={false}
+1181: />
+1182: 
+1183: <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '24px' }}>
+1184: <button
+1185: className="btn-primary"
+1186: style={{ backgroundColor: 'var(--sys-color-surface-variant)', color: 'var(--sys-color-on-surface)' }}
+1187: onClick={() => setIsImportModalOpen(false)}
+1188: >
+1189: 鍙栨秷
+1190: </button>
+1191: <button
+1192: className="btn-primary"
+1193: onClick={handleImportSkill}
+1194: >
+1195: 🚀 编译并加载                </button>
+1196: </div>
+1197: </div>
+1198: </div>
+1199: )}
+1200: 
+1201: {/* Model Manager Modal (Card-based UI) */}
+1202: {showModelManager && (
+1203: <div className="modal-overlay">
+1204: <div className="modal-content animate-fade-in" style={{ maxWidth: '800px', width: '90%' }}>
+1205: <button className="modal-close" onClick={() => setShowModelManager(false)}><X size={24} /></button>
+1206: <h2 style={{ marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+1207: <Settings size={24} /> 模型与 API Key 管理
+1208: </h2>
+1209: 
+1210: <div style={{ marginBottom: '32px' }}>
+1211: <h3 style={{ fontSize: '1.1rem', marginBottom: '16px', color: 'var(--sys-color-primary)' }}>宸查厤缃殑妯″瀷</h3>
+1212: <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
+1213: {models?.length === 0 ? <span style={{ fontSize: '0.9rem', color: 'gray', gridColumn: '1 / -1' }}>暂无模型，请在下方添加</span> : null}
+1214: {models?.map((m, i) => (
+1215: <div key={i} style={{
+1216: padding: '16px',
+1217: border: '1px solid var(--sys-color-surface-variant)',
+1218: borderRadius: 'var(--sys-radius-md)',
+1219: backgroundColor: 'var(--sys-color-surface)',
+1220: boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+1221: display: 'flex',
+1222: flexDirection: 'column',
+1223: gap: '12px'
+1224: }}>
+1225: <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+1226: <div>
+1227: {editingAliasProvider === m.provider ? (
+1228: <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+1229: <input
+1230: autoFocus
+1231: className="input-elegant"
+1232: style={{ padding: '4px 8px', fontSize: '0.9rem' }}
+1233: value={editingAliasValue}
+1234: onChange={(e) => setEditingAliasValue(e.target.value)}
+1235: onKeyDown={(e) => {
+1236: if (e.key === 'Enter') {
+1237: handleUpdateAlias(m.provider, editingAliasValue);
+1238: setEditingAliasProvider(null);
+1239: } else if (e.key === 'Escape') {
+1240: setEditingAliasProvider(null);
+1241: }
+1242: }}
+1243: />
+1244: <button className="btn-primary" style={{ padding: '4px 8px', fontSize: '0.8rem' }} onClick={() => {
+1245: handleUpdateAlias(m.provider, editingAliasValue);
+1246: setEditingAliasProvider(null);
+1247: }}>淇濆瓨</button>
+1248: </div>
+1249: ) : (
+1250: <h4 style={{ margin: 0, fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}
+1251: onClick={() => {
+1252: setEditingAliasProvider(m.provider);
+1253: setEditingAliasValue(m.alias || "");
+1254: }}
+1255: title="点击重命名别名"
+1256: >
+1257: {m.alias || "未命名模型"}
+1258: <span style={{ fontSize: '0.75rem', color: 'var(--sys-color-primary)', fontWeight: 'normal' }}>鉁忥笍</span>
+1259: </h4>
+1260: )}
+1261: <div style={{ fontSize: '0.85rem', color: 'var(--sys-color-on-surface-variant)', marginTop: '4px' }}>
+1262: 鍘熺敓鍨嬪彿: {m.model}
+1263: </div>
+1264: </div>
+1265: <span className={`badge badge-${m.provider}`}>{m.provider.toUpperCase()}</span>
+1266: </div>
+1267: 
+1268: <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 'auto', paddingTop: '8px', borderTop: '1px dashed var(--sys-color-surface-variant)' }}>
+1269: <button onClick={() => handleRemoveKey(m.provider)} style={{ background: 'none', border: 'none', color: 'var(--sys-color-error)', cursor: 'pointer', fontSize: '0.85rem', fontWeight: '500' }}>
+1270: 绉婚櫎閰嶇疆
+1271: </button>
+1272: </div>
+1273: </div>
+1274: ))}
+1275: </div>
+1276: </div>
+1277: 
+1278: <div style={{ padding: '20px', backgroundColor: 'var(--sys-color-surface-variant)', borderRadius: 'var(--sys-radius-md)' }}>
+1279: <h3 style={{ fontSize: '1rem', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}><Sparkles size={18} /> 鏋侀€熸坊鍔犳柊妯″瀷</h3>
+1280: <p style={{ fontSize: '0.85rem', color: 'var(--sys-color-on-surface-variant)', marginBottom: '16px' }}>
+1281: 系统将根据 API Key 的格式自动识别所属平台 (支持 OpenAI, Gemini, DeepSeek, Zhipu 等)。                </p>
+1282: <div style={{ display: 'flex', gap: '12px' }}>
+1283: <input
+1284: type="password"
+1285: className="input-elegant"
+1286: style={{ flex: 1 }}
+1287: placeholder="鍦ㄦ绮樿创鎮ㄧ殑 API Key..."
+1288: value={newApiKey}
+1289: onChange={e => setNewApiKey(e.target.value)}
+1290: onKeyDown={(e) => {
+1291: if (e.key === 'Enter') handleAddKey();
+1292: }}
+1293: />
+1294: <button className="btn-primary" onClick={handleAddKey}>绔嬪埢娣诲姞</button>
+1295: </div>
+1296: </div>
+1297: </div>
+1298: </div>
+1299: )}
+1300: </div>
+1301: 
+1302: {/* Custom Clear Confirmation Modal */}
+1303: {showClearConfirm && (
+1304: <div style={{
+1305: position: 'fixed',
+1306: top: 0, left: 0, right: 0, bottom: 0,
+1307: backgroundColor: 'rgba(0, 0, 0, 0.4)',
+1308: backdropFilter: 'blur(8px)',
+1309: display: 'flex',
+1310: alignItems: 'center',
+1311: justifyContent: 'center',
+1312: zIndex: 9999
+1313: }}>
+1314: <div style={{
+1315: backgroundColor: 'var(--sys-color-surface)',
+1316: borderRadius: '16px',
+1317: padding: '24px 32px',
+1318: width: '400px',
+1319: maxWidth: '90%',
+1320: boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
+1321: display: 'flex',
+1322: flexDirection: 'column',
+1323: gap: '16px',
+1324: border: '1px solid var(--sys-color-surface-variant)'
+1325: }}>
+1326: <h3 style={{ margin: 0, color: 'var(--sys-color-on-surface)', fontSize: '1.25rem' }}>娓呯┖褰撳墠瀵硅瘽</h3>
+1327: <p style={{ margin: 0, color: 'var(--sys-color-on-surface-variant)', fontSize: '0.95rem' }}>
+1328: 确定要清空当前会话的历史记录吗？此操作无法撤销。</p>
+1329: <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '8px' }}>
+1330: <button
+1331: className="btn-secondary"
+1332: onClick={() => setShowClearConfirm(false)}
+1333: style={{ padding: '8px 16px' }}
+1334: >
+1335: 鍙栨秷
+1336: </button>
+1337: <button
+1338: className="btn-primary"
+1339: onClick={() => {
+1340: setShowClearConfirm(false);
+1341: clearHistory();
+1342: }}
+1343: style={{ padding: '8px 16px', backgroundColor: 'var(--sys-color-error)', color: '#fff', border: 'none' }}
+1344: >
+1345: 纭娓呯┖
+1346: </button>
+1347: </div>
+1348: </div>
+1349: </div>
+1350: )}
+1351: 
+1352: </div>
+1353: );
+1354: }
+1355: 
+1356: export default App;
