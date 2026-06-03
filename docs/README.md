@@ -22,7 +22,10 @@
 | 14 | `SKYT_UI_OUTPUT_STRUCTURE.md` | 输入框、执行步骤、最终回答和 Token 的 UI 分层 |
 | 15 | `SKYT_IMPORTANT_WORK_LOG.md` | GPU 生成辅助 Markdown 和历史重要工作记录 |
 | 16 | `SKYT_WORKFLOW_TEMPLATES_DEMO.md` | Workflow Templates 比赛演示模板、节点结构和闭环路径 |
-| 17 | `XJB_TEST_REFERENCE_SUMMARY.md` | 参考项目 `D:\xjb-test` 的只读理解总结 |
+| 17 | `SKYT_TRAE_SKILL_EXPORT.md` | 工作流模板与编辑器工作流导出 Trae Skill 的接口、结构和演示路径 |
+| 18 | `SKYT_SKILL_WORKFLOW_ROUNDTRIP.md` | Trae Skill 导入为模板、系统技能转模板和双向转换闭环 |
+| 19 | `SKYT_BRANCH_WORKFLOW_RUNTIME.md` | 条件分支、else、loop、AND/OR 汇合的轻量运行机制 |
+| 20 | `XJB_TEST_REFERENCE_SUMMARY.md` | 参考项目 `D:\xjb-test` 的只读理解总结 |
 
 ## 当前主文档
 
@@ -42,6 +45,9 @@
 - `SKYT_UI_OUTPUT_STRUCTURE.md`：对话输出 UI 分层。
 - `SKYT_IMPORTANT_WORK_LOG.md`：GPU 归档 Markdown 和重要工作记录。
 - `SKYT_WORKFLOW_TEMPLATES_DEMO.md`：Workflow Templates 比赛演示模板。
+- `SKYT_TRAE_SKILL_EXPORT.md`：Workflow Template / Workflow Editor 导出 Trae Skill。
+- `SKYT_SKILL_WORKFLOW_ROUNDTRIP.md`：Skill 导出、导入、系统技能转模板闭环。
+- `SKYT_BRANCH_WORKFLOW_RUNTIME.md`：多分支、循环与汇合工作流运行规则。
 - `XJB_TEST_REFERENCE_SUMMARY.md`：参考项目总结。
 
 ## 维护口径
@@ -52,4 +58,11 @@
 - Agent、模型路由、工具调用或安全规则变更同步检查 `SYSTEM_ARCHITECTURE.md`、`MODULE_BOUNDARY.md` 和 `GPU_API_COLLABORATION.md`。
 - 比赛展示相关 UI 改动同步检查 `COMPETITION_VISUAL_GUIDE.md`。
 - Workflow Templates 或工作流演示改动同步检查 `SKYT_WORKFLOW_TEMPLATES_DEMO.md`。
+- Skill 导入导出、系统技能转模板改动同步检查 `SKYT_TRAE_SKILL_EXPORT.md` 和 `SKYT_SKILL_WORKFLOW_ROUNDTRIP.md`。
+- 条件分支、循环、汇合、连线属性或动态调度改动同步检查 `SKYT_BRANCH_WORKFLOW_RUNTIME.md`。
 - 不把运行产物、日志、缓存、`node_modules` 或 `__pycache__` 当作核心文档来源。
+
+## Trae Skill 导出
+
+- `SKYT_TRAE_SKILL_EXPORT.md`：说明 Workflow Template / Workflow Editor 如何一键导出为 Trae 项目级 Skill，包含生成目录、接口、比赛演示路径和维护边界。
+- `SKYT_SKILL_WORKFLOW_ROUNDTRIP.md`：说明 Trae Skill 如何导入回 Workflow Template，以及 Skills Store 中的系统技能如何转为工作流模板。

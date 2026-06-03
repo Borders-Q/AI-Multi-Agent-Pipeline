@@ -2,6 +2,7 @@ import os
 import re
 import json
 import asyncio
+import base64
 import time
 import uuid
 import psutil
@@ -30,7 +31,7 @@ if sys.platform == 'win32':
         pass
 
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Request, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, Response, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from pydantic import BaseModel
@@ -50,6 +51,8 @@ from agent.npu_classifier import npu_engine
 from agent.workflow import AgentWorkflowEngine
 from agent.markdown_archivist import generate_run_markdown
 from agent.code_artifacts import extract_local_urls
+from agent.trae_skill_exporter import build_skill_package, build_skill_zip, save_skill_to_workspace
+from agent.skill_workflow_importer import import_trae_skill_to_template, tool_schema_to_workflow_template
 from agent.skills import tool_manager
 import agent.tools.web_skills
 import agent.tools.report_tools
@@ -386,6 +389,61 @@ class SaveTemplateRequest(BaseModel):
     author: str = "System"
     workflow_json: str
 
+class ExportTraeSkillRequest(BaseModel):
+    mode: str = "download"
+    workspace: Optional[str] = None
+
+class ExportCurrentWorkflowSkillRequest(BaseModel):
+    title: str = "Ai Multi Agent Workflow Skill"
+    description: str = ""
+    workflow_json: Any
+    mode: str = "download"
+    workspace: Optional[str] = None
+
+class ImportTraeSkillTemplateRequest(BaseModel):
+    file_name: str
+    content_base64: str
+    save: bool = True
+    template_id: Optional[str] = None
+    title_override: Optional[str] = None
+
+class SkillToTemplateRequest(BaseModel):
+    save: bool = True
+    template_id: Optional[str] = None
+
+def _trae_skill_download_response(package: dict) -> Response:
+    zip_bytes = build_skill_zip(package)
+    filename = f"{package['skill_name']}.zip"
+    return Response(
+        content=zip_bytes,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+def _export_trae_skill_response(title: str, description: str, workflow_json: Any, req_mode: str, workspace: Optional[str], template_id: str = ""):
+    package = build_skill_package(title, description, workflow_json, template_id=template_id)
+    mode = (req_mode or "download").strip().lower()
+    if mode == "workspace":
+        try:
+            saved = save_skill_to_workspace(package, workspace or "")
+            return {"status": "success", "mode": "workspace", **saved}
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=str(e))
+    if mode != "download":
+        raise HTTPException(status_code=400, detail="mode must be 'download' or 'workspace'")
+    return _trae_skill_download_response(package)
+
+def _save_imported_workflow_template(payload: dict, *, tags: str = "Skill,Imported"):
+    db.save_workflow_template(
+        payload["template_id"],
+        payload["title"],
+        payload.get("description") or "",
+        "Imported",
+        tags,
+        "Ai Multi Agent User",
+        payload["workflow_json"],
+    )
+
 @app.post("/api/workflows/templates/{template_id}")
 def save_workflow_template_endpoint(template_id: str, req: SaveTemplateRequest):
     try:
@@ -395,6 +453,103 @@ def save_workflow_template_endpoint(template_id: str, req: SaveTemplateRequest):
         return {"status": "success"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/workflows/templates/{template_id}/export-trae-skill")
+def export_workflow_template_trae_skill_endpoint(template_id: str, req: ExportTraeSkillRequest):
+    try:
+        template = db.get_workflow_template(template_id)
+        if not template:
+            raise HTTPException(status_code=404, detail="Template not found")
+        return _export_trae_skill_response(
+            template.get("title") or template_id,
+            template.get("description") or "",
+            template.get("workflow_json"),
+            req.mode,
+            req.workspace,
+            template_id=template_id,
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/workflows/export-trae-skill")
+def export_current_workflow_trae_skill_endpoint(req: ExportCurrentWorkflowSkillRequest):
+    try:
+        workflow_json = normalize_workflow_payload(req.workflow_json)
+        return _export_trae_skill_response(
+            req.title,
+            req.description,
+            workflow_json,
+            req.mode,
+            req.workspace,
+            template_id="",
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/workflows/import-trae-skill-template")
+def import_trae_skill_template_endpoint(req: ImportTraeSkillTemplateRequest):
+    try:
+        try:
+            raw = base64.b64decode(req.content_base64, validate=False)
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail=f"Invalid base64 content: {exc}")
+        payload = import_trae_skill_to_template(
+            req.file_name,
+            raw,
+            template_id=req.template_id or "",
+            title_override=req.title_override or "",
+        )
+        if req.save:
+            _save_imported_workflow_template(payload, tags="Skill,Trae,Imported")
+        template = db.get_workflow_template(payload["template_id"]) if req.save else {
+            "template_id": payload["template_id"],
+            "title": payload["title"],
+            "description": payload.get("description", ""),
+            "workflow_json": payload["workflow_json"],
+        }
+        return {
+            "status": "success",
+            "template_id": payload["template_id"],
+            "template": template,
+            "workflow_json": payload["workflow_json"],
+            "warnings": payload.get("warnings", []),
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/api/workflows/skills/{skill_name}/to-template")
+def skill_to_workflow_template_endpoint(skill_name: str, req: SkillToTemplateRequest):
+    try:
+        tools = tool_manager.get_openai_tools()
+        tool = next((item for item in tools if (item.get("function") or {}).get("name") == skill_name), None)
+        if not tool:
+            raise HTTPException(status_code=404, detail=f"Skill '{skill_name}' not found")
+        payload = tool_schema_to_workflow_template(tool, template_id=req.template_id or "")
+        if req.save:
+            _save_imported_workflow_template(payload, tags="Skill,SystemTool,Imported")
+        template = db.get_workflow_template(payload["template_id"]) if req.save else {
+            "template_id": payload["template_id"],
+            "title": payload["title"],
+            "description": payload.get("description", ""),
+            "workflow_json": payload["workflow_json"],
+        }
+        return {
+            "status": "success",
+            "template_id": payload["template_id"],
+            "template": template,
+            "workflow_json": payload["workflow_json"],
+            "warnings": payload.get("warnings", []),
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 @app.get("/api/agents")
 def get_agents_endpoint():

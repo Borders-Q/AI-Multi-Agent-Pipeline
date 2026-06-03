@@ -1564,7 +1564,7 @@ function App() {
             </section>
           )} />
           <Route path="/skills" element={<div className="routed-view"><SkillsStore skills={skills} enabledSkills={enabledSkills} setEnabledSkills={setEnabledSkills} onImportSkill={fetchSkills} /></div>} />
-          <Route path="/workflows" element={<div className="routed-view"><Workflows sessionId={sessionId} onRunWorkflowTemplate={handleRunWorkflowTemplate} /></div>} />
+          <Route path="/workflows" element={<div className="routed-view"><Workflows sessionId={sessionId} onRunWorkflowTemplate={handleRunWorkflowTemplate} workspacePath={workspacePath} onBindWorkspace={handleBindWorkspace} /></div>} />
           <Route path="/workflows/editor" element={<div className="routed-view flush"><WorkflowEditorPage /></div>} />
           <Route path="/dashboard" element={<div className="routed-view"><Dashboard /></div>} />
           <Route path="/history" element={<div className="routed-view"><RunHistory /></div>} />

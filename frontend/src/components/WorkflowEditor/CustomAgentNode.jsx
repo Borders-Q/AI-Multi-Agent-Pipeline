@@ -6,10 +6,12 @@ import {
   Code,
   GitBranch,
   Merge,
+  RefreshCw,
   Search,
   Shield,
   Sparkles,
   User,
+  Wrench,
   Zap,
 } from 'lucide-react';
 
@@ -23,6 +25,8 @@ const ICONS = {
   shield: Shield,
   split: GitBranch,
   merge: Merge,
+  wrench: Wrench,
+  refresh: RefreshCw,
 };
 
 const NODE_TYPE_LABELS = {
@@ -31,6 +35,10 @@ const NODE_TYPE_LABELS = {
   human_approval: '审批',
   code_agent: '文件',
   custom_agent: '自定义',
+  tool_skill: 'Skill',
+  join_and: 'AND',
+  join_or: 'OR',
+  loop_controller: 'Loop',
 };
 
 export default function CustomAgentNode({ data, selected }) {

@@ -13,9 +13,26 @@ import {
   Typography,
 } from '@mui/material';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
-import { ArrowLeft, CheckCircle2, LayoutGrid, Save, Settings } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Download, LayoutGrid, Save, Settings } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useWorkflowStore } from '../../store/workflowStore';
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function filenameFromDisposition(response, fallback) {
+  const header = response.headers.get('Content-Disposition') || '';
+  const match = header.match(/filename="?([^"]+)"?/i);
+  return match?.[1] || fallback;
+}
 
 export default function Toolbar() {
   const darkTheme = createTheme({
@@ -47,6 +64,7 @@ export default function Toolbar() {
   const [toastSeverity, setToastSeverity] = useState('success');
   const [openSettings, setOpenSettings] = useState(false);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const [exportingSkill, setExportingSkill] = useState(false);
 
   const [formTitle, setFormTitle] = useState(title);
   const [formDesc, setFormDesc] = useState(description);
@@ -101,6 +119,34 @@ export default function Toolbar() {
     }
   };
 
+  const handleExportSkill = async () => {
+    setExportingSkill(true);
+    try {
+      const workflowJson = exportWorkflow();
+      const res = await fetch(`http://${window.location.hostname}:8000/api/workflows/export-trae-skill`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: title || 'Ai Multi Agent Workflow Skill',
+          description,
+          workflow_json: workflowJson,
+          mode: 'download',
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || `HTTP ${res.status}`);
+      }
+      const blob = await res.blob();
+      downloadBlob(blob, filenameFromDisposition(res, `${templateId || 'current-workflow-skill'}.zip`));
+      showToast('Trae Skill 包已生成并开始下载。');
+    } catch (e) {
+      showToast(`导出 Trae Skill 失败：${e.message}`, 'error');
+    } finally {
+      setExportingSkill(false);
+    }
+  };
+
   const errorCount = validationIssues.filter((issue) => issue.severity === 'error').length;
   const warningCount = validationIssues.filter((issue) => issue.severity !== 'error').length;
 
@@ -137,6 +183,9 @@ export default function Toolbar() {
         </Button>
         <Button variant="outlined" startIcon={<Settings size={17} />} onClick={() => setOpenSettings(true)} sx={{ borderRadius: '18px' }}>
           模板属性
+        </Button>
+        <Button variant="outlined" startIcon={<Download size={17} />} onClick={handleExportSkill} disabled={exportingSkill} sx={{ borderRadius: '18px', fontWeight: 'bold' }}>
+          {exportingSkill ? '导出中...' : '导出 Skill'}
         </Button>
         <Button variant="contained" startIcon={<Save size={17} />} onClick={handleSave} disabled={saving} sx={{ borderRadius: '18px', fontWeight: 'bold' }}>
           {saving ? '保存中...' : '保存模板'}

@@ -9,12 +9,16 @@ import {
   Chip,
   CircularProgress,
   Divider,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   MenuItem,
   Select,
   TextField,
   Typography,
 } from '@mui/material';
-import { Blocks, Bot, FileText, GitBranch, History, Play, RefreshCw, Search, Settings, Sparkles } from 'lucide-react';
+import { Blocks, Bot, Download, FileText, GitBranch, History, Play, RefreshCw, Search, Settings, Sparkles } from 'lucide-react';
 import { useWorkflowStore } from '../store/workflowStore';
 
 const API_BASE = `http://${window.location.hostname}:8000`;
@@ -64,6 +68,9 @@ const pageSx = {
     color: 'var(--sys-color-on-surface)',
     borderColor: 'var(--sys-color-surface-variant)',
   },
+  '& .MuiButton-root': {
+    textTransform: 'none',
+  },
   '& .MuiAlert-root': {
     backgroundColor: 'rgba(83, 140, 255, 0.12)',
     color: 'var(--sys-color-on-surface)',
@@ -105,7 +112,36 @@ function chipColor(flag) {
   return flag ? 'success' : 'default';
 }
 
-export default function Workflows({ sessionId = 'default', onRunWorkflowTemplate }) {
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function filenameFromDisposition(response, fallback) {
+  const header = response.headers.get('Content-Disposition') || '';
+  const match = header.match(/filename="?([^"]+)"?/i);
+  return match?.[1] || fallback;
+}
+
+function readFileAsBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const value = String(reader.result || '');
+      resolve(value.includes(',') ? value.split(',').pop() : value);
+    };
+    reader.onerror = () => reject(reader.error || new Error('读取文件失败'));
+    reader.readAsDataURL(file);
+  });
+}
+
+export default function Workflows({ sessionId = 'default', onRunWorkflowTemplate, workspacePath = '', onBindWorkspace }) {
   const navigate = useNavigate();
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -115,6 +151,14 @@ export default function Workflows({ sessionId = 'default', onRunWorkflowTemplate
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [requirement, setRequirement] = useState('');
   const [notice, setNotice] = useState('');
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [importMode, setImportMode] = useState('trae');
+  const [importFile, setImportFile] = useState(null);
+  const [installedSkills, setInstalledSkills] = useState([]);
+  const [selectedSkillName, setSelectedSkillName] = useState('');
+  const [importing, setImporting] = useState(false);
 
   const loadWorkflow = useWorkflowStore((state) => state.loadWorkflow);
   const clearWorkflow = useWorkflowStore((state) => state.clearWorkflow);
@@ -217,6 +261,120 @@ export default function Workflows({ sessionId = 'default', onRunWorkflowTemplate
     navigate('/workflows/editor');
   };
 
+  const openImportDialog = async () => {
+    setImportDialogOpen(true);
+    if (!installedSkills.length) {
+      try {
+        const res = await fetch(`${API_BASE}/api/skills`);
+        if (res.ok) {
+          const data = await res.json();
+          const nextSkills = data.skills || [];
+          setInstalledSkills(nextSkills);
+          setSelectedSkillName((current) => current || nextSkills[0]?.function?.name || '');
+        }
+      } catch (e) {
+        console.error('Failed to load skills:', e);
+      }
+    }
+  };
+
+  const handleImportTraeSkill = async () => {
+    if (!importFile) {
+      setNotice('请先选择 Trae Skill zip、SKILL.md 或 workflow.json 文件。');
+      return;
+    }
+    setImporting(true);
+    setNotice('');
+    try {
+      const contentBase64 = await readFileAsBase64(importFile);
+      const res = await fetch(`${API_BASE}/api/workflows/import-trae-skill-template`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          file_name: importFile.name,
+          content_base64: contentBase64,
+          save: true,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+      await loadTemplates();
+      setNotice(`Trae Skill 已导入为工作流模板：${data.template_id}${data.warnings?.length ? `；提示：${data.warnings.join('；')}` : ''}`);
+      setImportDialogOpen(false);
+      setImportFile(null);
+    } catch (e) {
+      setNotice(`导入 Trae Skill 失败：${e.message}`);
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const handleSystemSkillToTemplate = async () => {
+    if (!selectedSkillName) {
+      setNotice('请先选择一个已安装系统技能。');
+      return;
+    }
+    setImporting(true);
+    setNotice('');
+    try {
+      const res = await fetch(`${API_BASE}/api/workflows/skills/${encodeURIComponent(selectedSkillName)}/to-template`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ save: true }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+      await loadTemplates();
+      setNotice(`系统技能已转换为工作流模板：${data.template_id}`);
+      setImportDialogOpen(false);
+    } catch (e) {
+      setNotice(`系统技能转模板失败：${e.message}`);
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const handleExportTemplateSkill = async (mode) => {
+    if (!selectedTemplate) return;
+    setExporting(true);
+    setNotice('');
+    try {
+      let targetWorkspace = workspacePath;
+      if (mode === 'workspace' && !targetWorkspace) {
+        targetWorkspace = await onBindWorkspace?.();
+      }
+      if (mode === 'workspace' && !targetWorkspace) {
+        setNotice('导出到工作区前需要先绑定工作区。');
+        return;
+      }
+
+      const res = await fetch(`${API_BASE}/api/workflows/templates/${selectedTemplate.template_id}/export-trae-skill`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode, workspace: targetWorkspace || null }),
+      });
+
+      if (mode === 'download') {
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.detail || `HTTP ${res.status}`);
+        }
+        const blob = await res.blob();
+        downloadBlob(blob, filenameFromDisposition(res, `${selectedTemplate.template_id || 'workflow-skill'}.zip`));
+        setNotice('Trae Skill 包已生成并开始下载。');
+      } else {
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+        setNotice(`Trae Skill 已保存到：${data.target_dir}`);
+      }
+      setExportDialogOpen(false);
+    } catch (e) {
+      setNotice(`导出 Trae Skill 失败：${e.message}`);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <Box sx={pageSx}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 2, mb: 3 }}>
@@ -238,6 +396,9 @@ export default function Workflows({ sessionId = 'default', onRunWorkflowTemplate
           <Button variant="outlined" startIcon={<RefreshCw size={18} />} onClick={loadTemplates} disabled={loading} sx={{ borderRadius: '20px' }}>
             刷新
           </Button>
+          <Button variant="outlined" startIcon={<Download size={18} />} onClick={openImportDialog} sx={{ borderRadius: '20px', fontWeight: 'bold' }}>
+            导入 Skill 为模板
+          </Button>
           <Button variant="contained" color="primary" onClick={handleCreateNew} sx={{ borderRadius: '20px', fontWeight: 'bold' }}>
             + 创建新流
           </Button>
@@ -250,17 +411,22 @@ export default function Workflows({ sessionId = 'default', onRunWorkflowTemplate
       <Box sx={{ display: 'flex', gap: 3, flexDirection: { xs: 'column', lg: 'row' } }}>
         <Box sx={{ flex: 1.05, minWidth: { lg: '430px' } }}>
           <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
-            <TextField
-              size="small"
-              fullWidth
-              placeholder="搜索模板名称 / 场景 / 标签..."
-              value={keyword}
-              onChange={(event) => setKeyword(event.target.value)}
-              InputProps={{
-                startAdornment: <Search size={18} style={{ marginRight: 8, opacity: 0.5 }} />,
-              }}
-              sx={{ bgcolor: 'var(--sys-color-surface)' }}
-            />
+            <Box sx={{ position: 'relative', flex: 1 }}>
+              <Search size={18} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', opacity: 0.55, zIndex: 1 }} />
+              <TextField
+                size="small"
+                fullWidth
+                placeholder="搜索模板名称 / 场景 / 标签..."
+                value={keyword}
+                onChange={(event) => setKeyword(event.target.value)}
+                sx={{
+                  bgcolor: 'var(--sys-color-surface)',
+                  '& .MuiInputBase-input': {
+                    pl: '34px',
+                  },
+                }}
+              />
+            </Box>
             <Select
               size="small"
               value={stageFilter}
@@ -398,6 +564,16 @@ export default function Workflows({ sessionId = 'default', onRunWorkflowTemplate
                 </Button>
                 <Button
                   variant="outlined"
+                  color="primary"
+                  startIcon={<Download size={18} />}
+                  fullWidth
+                  sx={{ py: 1.4, fontWeight: 'bold' }}
+                  onClick={() => setExportDialogOpen(true)}
+                >
+                  导出 Trae Skill
+                </Button>
+                <Button
+                  variant="outlined"
                   color="secondary"
                   startIcon={<Settings size={18} />}
                   fullWidth
@@ -413,6 +589,118 @@ export default function Workflows({ sessionId = 'default', onRunWorkflowTemplate
           )}
         </Box>
       </Box>
+
+      <Dialog
+        open={exportDialogOpen}
+        onClose={() => setExportDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            bgcolor: 'var(--sys-color-surface)',
+            color: 'var(--sys-color-on-surface)',
+            border: '1px solid var(--sys-color-surface-variant)',
+          },
+        }}
+      >
+        <DialogTitle>导出为 Trae Skill</DialogTitle>
+        <DialogContent sx={{ display: 'grid', gap: 1.5, pt: 1, color: 'var(--sys-color-on-surface)' }}>
+          <Typography variant="body2" sx={{ color: 'var(--sys-color-on-surface-variant)' }}>
+            将当前工作流模板转换为 Trae 可识别的项目级 Skill，结构为 <code>.trae/skills/&lt;skill-name&gt;/SKILL.md</code>。
+          </Typography>
+          <Typography variant="body2">
+            当前模板：{selectedTemplate?.title || '未选择模板'}
+          </Typography>
+          <Typography variant="caption" sx={{ color: 'var(--sys-color-on-surface-variant)' }}>
+            已绑定工作区：{workspacePath || '未绑定'}
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setExportDialogOpen(false)} disabled={exporting}>取消</Button>
+          <Button onClick={() => handleExportTemplateSkill('workspace')} disabled={exporting} variant="outlined">
+            保存到工作区
+          </Button>
+          <Button onClick={() => handleExportTemplateSkill('download')} disabled={exporting} variant="contained" startIcon={exporting ? <CircularProgress size={15} /> : <Download size={16} />}>
+            下载 Skill 包
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={importDialogOpen}
+        onClose={() => setImportDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            bgcolor: 'var(--sys-color-surface)',
+            color: 'var(--sys-color-on-surface)',
+            border: '1px solid var(--sys-color-surface-variant)',
+          },
+        }}
+      >
+        <DialogTitle>导入 Skill 为工作流模板</DialogTitle>
+        <DialogContent sx={{ display: 'grid', gap: 2, pt: 1, color: 'var(--sys-color-on-surface)' }}>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Button variant={importMode === 'trae' ? 'contained' : 'outlined'} onClick={() => setImportMode('trae')}>
+              Trae Skill 包
+            </Button>
+            <Button variant={importMode === 'system' ? 'contained' : 'outlined'} onClick={() => setImportMode('system')}>
+              系统技能
+            </Button>
+          </Box>
+
+          {importMode === 'trae' ? (
+            <Box sx={{ display: 'grid', gap: 1.4 }}>
+              <Typography variant="body2" sx={{ color: 'var(--sys-color-on-surface-variant)' }}>
+                支持上传工作流导出的 zip，也支持单独上传 <code>SKILL.md</code> 或 <code>workflow.json</code>。系统只解析文件，不执行 Skill 代码。
+              </Typography>
+              <Button variant="outlined" component="label">
+                选择文件
+                <input
+                  hidden
+                  type="file"
+                  accept=".zip,.md,.json"
+                  onChange={(event) => setImportFile(event.target.files?.[0] || null)}
+                />
+              </Button>
+              <Typography variant="caption" sx={{ color: 'var(--sys-color-on-surface-variant)' }}>
+                当前文件：{importFile?.name || '未选择'}
+              </Typography>
+            </Box>
+          ) : (
+            <Box sx={{ display: 'grid', gap: 1.4 }}>
+              <Typography variant="body2" sx={{ color: 'var(--sys-color-on-surface-variant)' }}>
+                将 Skills Store 中已注册的工具技能转换成“需求整理 → 技能调用 → 结果总结”的可编辑工作流模板。
+              </Typography>
+              <Select
+                size="small"
+                fullWidth
+                value={selectedSkillName}
+                onChange={(event) => setSelectedSkillName(event.target.value)}
+                MenuProps={selectMenuProps}
+              >
+                {installedSkills.map((skill) => (
+                  <MenuItem key={skill.function.name} value={skill.function.name}>
+                    {skill.function.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setImportDialogOpen(false)} disabled={importing}>取消</Button>
+          <Button
+            onClick={importMode === 'trae' ? handleImportTraeSkill : handleSystemSkillToTemplate}
+            disabled={importing}
+            variant="contained"
+            startIcon={importing ? <CircularProgress size={15} /> : <Download size={16} />}
+          >
+            导入为模板
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

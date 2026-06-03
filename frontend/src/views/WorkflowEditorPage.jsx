@@ -20,9 +20,10 @@ const nodeTypes = {
 };
 
 function stageClass(agent) {
-  if (agent.nodeType === 'condition') return 'branch';
+  if (['condition', 'join_and', 'join_or', 'loop_controller'].includes(agent.nodeType)) return 'branch';
   if (agent.nodeType === 'human_approval') return 'approval';
   if (agent.nodeType === 'code_agent') return 'code';
+  if (agent.nodeType === 'tool_skill') return 'code';
   if (agent.nodeType === 'custom_agent') return 'custom';
   return '';
 }

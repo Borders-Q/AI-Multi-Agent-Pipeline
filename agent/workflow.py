@@ -78,6 +78,113 @@ def _inside_workspace(path: str, workspace: str) -> bool:
     except Exception:
         return False
 
+CONDITION_RE = re.compile(
+    r"^\s*([A-Za-z_][A-Za-z0-9_]*)\s*(==|!=|>=|<=|>|<)\s*(true|false|null|none|-?\d+(?:\.\d+)?|'[^']*'|\"[^\"]*\")\s*$",
+    re.IGNORECASE,
+)
+ALLOWED_CONDITION_FIELDS = {
+    "success",
+    "test_success",
+    "approved",
+    "retry_count",
+    "max_retry_count",
+    "quality_score",
+    "coverage_percent",
+    "error_log",
+    "status",
+    "has_code_blocks",
+}
+
+
+def _edge_data(edge: dict) -> dict:
+    data = edge.get("data") if isinstance(edge.get("data"), dict) else {}
+    loop_policy = data.get("loopPolicy") if isinstance(data.get("loopPolicy"), dict) else {}
+    if isinstance(edge.get("loopPolicy"), dict):
+        loop_policy = {**loop_policy, **edge.get("loopPolicy")}
+    return {
+        "edgeType": edge.get("edgeType") or data.get("edgeType") or "control",
+        "condition": edge.get("condition") or data.get("condition") or "",
+        "label": edge.get("label") or data.get("label") or "",
+        "fromOutputField": edge.get("fromOutputField") or data.get("fromOutputField") or "",
+        "toInputField": edge.get("toInputField") or data.get("toInputField") or "",
+        "loopPolicy": loop_policy,
+    }
+
+
+def _literal_value(raw: str):
+    value = str(raw).strip()
+    lower = value.lower()
+    if lower == "true":
+        return True
+    if lower == "false":
+        return False
+    if lower in ("null", "none"):
+        return None
+    if (value.startswith("'") and value.endswith("'")) or (value.startswith('"') and value.endswith('"')):
+        return value[1:-1]
+    try:
+        return float(value) if "." in value else int(value)
+    except ValueError:
+        return value
+
+
+def _compare_condition(left, operator: str, right) -> bool:
+    if operator == "==":
+        return left == right
+    if operator == "!=":
+        return left != right
+    try:
+        left_num = float(left)
+        right_num = float(right)
+    except (TypeError, ValueError):
+        return False
+    if operator == ">":
+        return left_num > right_num
+    if operator == "<":
+        return left_num < right_num
+    if operator == ">=":
+        return left_num >= right_num
+    if operator == "<=":
+        return left_num <= right_num
+    return False
+
+
+def _evaluate_condition(condition: str, state: dict) -> bool:
+    normalized = (condition or "").strip()
+    if not normalized or normalized.lower() in ("always", "default"):
+        return True
+    if normalized.lower() == "else":
+        return False
+    match = CONDITION_RE.match(normalized)
+    if not match:
+        return False
+    field_name, operator, literal = match.groups()
+    if field_name not in ALLOWED_CONDITION_FIELDS:
+        return False
+    return _compare_condition(state.get(field_name), operator, _literal_value(literal))
+
+
+def _node_type(node: dict) -> str:
+    data = node.get("data", {}) or {}
+    return str(data.get("nodeType") or data.get("node_type") or "agent")
+
+
+def _derive_runtime_state(node_result: str, previous: dict) -> dict:
+    result = str(node_result or "")
+    lowered = result.lower()
+    failed = any(token in lowered for token in ["error", "failed", "exception", "traceback", "失败", "报错", "错误"])
+    success = not failed
+    next_state = dict(previous)
+    next_state.update({
+        "success": success,
+        "status": "success" if success else "failed",
+        "error_log": result[:1000] if failed else "",
+        "has_code_blocks": "```" in result,
+        "test_success": success if "test" in lowered or "测试" in result or "验证" in result else next_state.get("test_success", success),
+        "last_output": result[:4000],
+    })
+    return next_state
+
 
 def _scope_tool_args_to_workspace(func_name: str, kwargs: dict, workspace: str) -> tuple[dict, str | None]:
     """Keep workflow tool calls inside the user-bound workspace when possible."""
@@ -530,6 +637,51 @@ class AgentWorkflowEngine:
         # Fallback if there's a cycle or disconnected graph
         if len(sorted_nodes) < len(nodes):
             sorted_nodes = sorted(nodes, key=lambda n: n.get('position', {}).get('x', 0))
+
+        outgoing_edges = {}
+        incoming_edges = {}
+        for edge in edges:
+            src = edge.get("source")
+            tgt = edge.get("target")
+            if not src or not tgt:
+                continue
+            edge_info = _edge_data(edge)
+            outgoing_edges.setdefault(src, []).append(edge)
+            if edge_info.get("edgeType") != "loop":
+                incoming_edges.setdefault(tgt, []).append(edge)
+        entry_nodes = [node for node in sorted_nodes if not incoming_edges.get(node.get("id"))] or sorted_nodes[:1]
+        node_queue = [node.get("id") for node in entry_nodes if node.get("id")]
+        completed_nodes = set()
+        skipped_edges = set()
+        loop_counts = {}
+        runtime_state = {
+            "success": True,
+            "test_success": True,
+            "approved": True,
+            "retry_count": 0,
+            "max_retry_count": 3,
+            "quality_score": 0,
+            "coverage_percent": 0,
+            "error_log": "",
+            "status": "success",
+            "has_code_blocks": False,
+        }
+        max_workflow_steps = max(20, len(nodes) * 8)
+        workflow_steps = 0
+
+        def enqueue_node(node_id: str):
+            if node_id and node_id in node_map and node_id not in node_queue:
+                node_queue.append(node_id)
+
+        def join_ready(node: dict) -> bool:
+            node_id = node.get("id")
+            node_kind = _node_type(node)
+            incoming = incoming_edges.get(node_id, [])
+            if node_kind == "join_and":
+                return all(edge.get("source") in completed_nodes for edge in incoming)
+            if node_kind == "join_or":
+                return not incoming or any(edge.get("source") in completed_nodes for edge in incoming)
+            return True
             
         current_state_context = f"初始任务: {task_description}"
         if workspace_dir:
@@ -597,7 +749,42 @@ class AgentWorkflowEngine:
                 "routed_by": routed_by
             })
             
-        for node in sorted_nodes:
+        while node_queue and workflow_steps < max_workflow_steps:
+            node_id = node_queue.pop(0)
+            node = node_map.get(node_id)
+            if not node:
+                continue
+            has_loop_incoming = any(_edge_data(edge).get("edgeType") == "loop" for edge in edges if edge.get("target") == node_id)
+            if node_id in completed_nodes and not has_loop_incoming:
+                continue
+            if not join_ready(node):
+                db.save_run_event(
+                    run_id,
+                    "WORKFLOW_JOIN_WAITING",
+                    "WorkflowEngine",
+                    "SKIPPED",
+                    f"汇合节点等待上游完成: {node.get('data', {}).get('label', node_id)}",
+                    json.dumps({
+                        "input_payload": {"node": node_id, "incoming": [edge.get("source") for edge in incoming_edges.get(node_id, [])]},
+                        "output_payload": {"completed_nodes": list(completed_nodes)},
+                    }, ensure_ascii=False),
+                    0
+                )
+                continue
+            if _node_type(node) in ("join_and", "join_or"):
+                db.save_run_event(
+                    run_id,
+                    "WORKFLOW_JOIN_READY",
+                    "WorkflowEngine",
+                    "SUCCESS",
+                    f"汇合节点已满足进入条件: {node.get('data', {}).get('label', node_id)}",
+                    json.dumps({
+                        "input_payload": {"node": node_id, "incoming": [edge.get("source") for edge in incoming_edges.get(node_id, [])]},
+                        "output_payload": {"completed_nodes": list(completed_nodes), "joinType": _node_type(node)},
+                    }, ensure_ascii=False),
+                    0
+                )
+            workflow_steps += 1
             node_data = node.get("data", {}) or {}
             node_name = node_data.get("label", node.get("id"))
             if isinstance(node_name, dict):
@@ -650,13 +837,23 @@ class AgentWorkflowEngine:
                 node_prompt += "\n【预览策略】如果生成或启动了本地 Web 服务，请明确输出 http://127.0.0.1:端口 或 http://localhost:端口。"
             if str(node_agent_id).lower() not in ("websearch", "web_search") and node_data.get("stage") != "research":
                 node_prompt += "\n【联网约束】本节点不负责联网搜索，除非用户明确要求实时资料，否则不要调用 web_search，直接基于用户需求和已有上下文完成。"
+            node_tools = tools
+            if node_data.get("nodeType") == "tool_skill":
+                tool_config = node_data.get("toolSkillConfig") or {}
+                target_tool = str(tool_config.get("name") or str(node_agent_id).replace("skill:", "")).strip()
+                node_tools = [tool for tool in tools if (tool.get("function") or {}).get("name") == target_tool]
+                node_prompt += (
+                    f"\n【系统 Skill 调用约束】本节点只允许围绕 `{target_tool}` 技能工作。"
+                    "请先根据用户需求和上游上下文整理参数；如果工具可用，必须调用该工具；"
+                    "如果参数不足，请输出缺失参数和可执行的替代总结。"
+                )
 
             step_messages = base_step_messages.copy() if base_step_messages else messages.copy()
             step_messages.append({"role": "user", "content": node_prompt})
             
             try:
                 artifacts_before_node = len(saved_artifacts)
-                response = await llm.chat_completion(step_messages, provider=self.provider, tools=tools, stream_callback=sse_callback)
+                response = await llm.chat_completion(step_messages, provider=self.provider, tools=node_tools, stream_callback=sse_callback)
                 msg = response.choices[0].message
                 node_usage_calls = []
                 call_usage = getattr(response, "skyt_token_usage", None) or usage_from_openai_response(
@@ -731,7 +928,7 @@ class AgentWorkflowEngine:
                         await emit_preview_urls(result, f"tool:{func_name}")
                         
                     # Second LLM call after tools
-                    response2 = await llm.chat_completion(step_messages, provider=self.provider, tools=tools)
+                    response2 = await llm.chat_completion(step_messages, provider=self.provider, tools=node_tools)
                     msg = response2.choices[0].message
                     call_usage2 = getattr(response2, "skyt_token_usage", None) or usage_from_openai_response(
                         response2,
@@ -886,7 +1083,113 @@ class AgentWorkflowEngine:
                     "model_info": {"provider": self.provider, "routed_by": routed_by},
                 }, ensure_ascii=False), dur_ms)
                 await emit(node_name, "done", f"节点 {node_name} 已完成，并写入结构化回放。", node_summary)
-                
+                completed_nodes.add(node.get("id"))
+                runtime_state = _derive_runtime_state(node_result, runtime_state)
+
+                outgoing = outgoing_edges.get(node.get("id"), [])
+                branch_edges = []
+                control_edges = []
+                loop_edges = []
+                for edge in outgoing:
+                    edge_info = _edge_data(edge)
+                    edge_type = edge_info.get("edgeType") or "control"
+                    condition = edge_info.get("condition") or ""
+                    if edge_type == "data":
+                        continue
+                    if edge_type == "loop":
+                        loop_edges.append(edge)
+                    elif edge_type == "branch" or condition:
+                        branch_edges.append(edge)
+                    else:
+                        control_edges.append(edge)
+
+                loop_taken = False
+                for edge in loop_edges:
+                    edge_info = _edge_data(edge)
+                    condition = edge_info.get("condition") or ""
+                    edge_key = f"{edge.get('source')}->{edge.get('target')}:{condition or 'loop'}"
+                    max_iterations = int((edge_info.get("loopPolicy") or {}).get("maxIterations") or 0)
+                    current_count = loop_counts.get(edge_key, 0)
+                    condition_ok = _evaluate_condition(condition, runtime_state)
+                    if max_iterations > 0 and current_count < max_iterations and condition_ok:
+                        loop_counts[edge_key] = current_count + 1
+                        runtime_state["retry_count"] = loop_counts[edge_key]
+                        db.save_run_event(
+                            run_id,
+                            "WORKFLOW_LOOP_ITERATION",
+                            "WorkflowEngine",
+                            "SUCCESS",
+                            f"循环重试 {current_count + 1}/{max_iterations}: {edge.get('source')} -> {edge.get('target')}",
+                            json.dumps({
+                                "input_payload": {"edge": edge, "runtime_state": runtime_state},
+                                "output_payload": {"iteration": current_count + 1, "maxIterations": max_iterations},
+                            }, ensure_ascii=False),
+                            0
+                        )
+                        enqueue_node(edge.get("target"))
+                        loop_taken = True
+                        break
+                    if max_iterations > 0 and current_count >= max_iterations:
+                        db.save_run_event(
+                            run_id,
+                            "WORKFLOW_LOOP_LIMIT_REACHED",
+                            "WorkflowEngine",
+                            "SKIPPED",
+                            f"循环达到上限: {edge.get('source')} -> {edge.get('target')}",
+                            json.dumps({
+                                "input_payload": {"edge": edge},
+                                "output_payload": {"iteration": current_count, "maxIterations": max_iterations},
+                            }, ensure_ascii=False),
+                            0
+                        )
+
+                if not loop_taken:
+                    if branch_edges:
+                        fallback_edge = None
+                        selected_edge = None
+                        for edge in branch_edges:
+                            edge_info = _edge_data(edge)
+                            condition = (edge_info.get("condition") or "").strip()
+                            if condition.lower() in ("else", "default"):
+                                fallback_edge = edge
+                                continue
+                            if _evaluate_condition(condition, runtime_state):
+                                selected_edge = edge
+                                break
+                            skipped_key = edge.get("id") or f"{edge.get('source')}->{edge.get('target')}"
+                            if skipped_key not in skipped_edges:
+                                skipped_edges.add(skipped_key)
+                                db.save_run_event(
+                                    run_id,
+                                    "WORKFLOW_BRANCH_SKIPPED",
+                                    "WorkflowEngine",
+                                    "SKIPPED",
+                                    f"分支条件未命中: {edge.get('source')} -> {edge.get('target')}",
+                                    json.dumps({
+                                        "input_payload": {"edge": edge, "runtime_state": runtime_state},
+                                        "output_payload": {"condition": condition},
+                                    }, ensure_ascii=False),
+                                    0
+                                )
+                        selected_edge = selected_edge or fallback_edge
+                        if selected_edge:
+                            edge_info = _edge_data(selected_edge)
+                            db.save_run_event(
+                                run_id,
+                                "WORKFLOW_BRANCH_SELECTED",
+                                "WorkflowEngine",
+                                "SUCCESS",
+                                f"分支已选择: {selected_edge.get('source')} -> {selected_edge.get('target')}",
+                                json.dumps({
+                                    "input_payload": {"edge": selected_edge, "runtime_state": runtime_state},
+                                    "output_payload": {"condition": edge_info.get("condition") or "default"},
+                                }, ensure_ascii=False),
+                                0
+                            )
+                            enqueue_node(selected_edge.get("target"))
+                    for edge in control_edges:
+                        enqueue_node(edge.get("target"))
+
             except Exception as e:
                 dur_ms = int((time.time() - t0) * 1000)
                 db.save_run_event(run_id, "WORKFLOW_NODE", "WorkflowEngine", "FAILED", f"Node {node_name} Error: {str(e)}", json.dumps({
@@ -899,6 +1202,21 @@ class AgentWorkflowEngine:
                 
             # The success emit is already sent with token details above.
             
+        if node_queue and workflow_steps >= max_workflow_steps:
+            db.save_run_event(
+                run_id,
+                "WORKFLOW_LOOP_LIMIT_REACHED",
+                "WorkflowEngine",
+                "FAILED",
+                "工作流达到全局最大步数，已安全停止以避免死循环。",
+                json.dumps({
+                    "input_payload": {"remaining_queue": node_queue, "max_workflow_steps": max_workflow_steps},
+                    "output_payload": {"completed_nodes": list(completed_nodes), "loop_counts": loop_counts},
+                }, ensure_ascii=False),
+                0
+            )
+            final_reply += "\n\n> 工作流达到全局最大步数，系统已安全停止以避免死循环。"
+
         deployment_summary = ""
         should_auto_deploy = (
             bool(workspace_dir)

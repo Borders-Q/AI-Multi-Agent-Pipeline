@@ -126,6 +126,50 @@ const SPECIAL_AGENTS = [
     outputFields: ['diff', 'audit_path', 'file_result'],
   },
   {
+    agent_id: 'tool_skill',
+    name: '系统 Skill 调用节点',
+    description: '把 Skills Store 中已注册的工具技能放入工作流中执行。',
+    color: '#60a5fa',
+    icon: 'wrench',
+    stage: 'execution',
+    nodeType: 'tool_skill',
+    inputFields: ['tool_context'],
+    outputFields: ['tool_result', 'success', 'status'],
+  },
+  {
+    agent_id: 'join_and',
+    name: 'AND 汇合节点',
+    description: '等待多个必要上游分支都完成后再继续执行。',
+    color: '#f59e0b',
+    icon: 'merge',
+    stage: 'branch',
+    nodeType: 'join_and',
+    inputFields: ['left', 'right'],
+    outputFields: ['join_result', 'success'],
+  },
+  {
+    agent_id: 'join_or',
+    name: 'OR 汇合节点',
+    description: '任一上游分支完成即可继续执行，适合多方案兜底。',
+    color: '#fb923c',
+    icon: 'merge',
+    stage: 'branch',
+    nodeType: 'join_or',
+    inputFields: ['option_a', 'option_b'],
+    outputFields: ['join_result', 'success'],
+  },
+  {
+    agent_id: 'loop_controller',
+    name: '循环重试节点',
+    description: '配合 loop 连线和 maxIterations 控制失败重试。',
+    color: '#f97316',
+    icon: 'split',
+    stage: 'branch',
+    nodeType: 'loop_controller',
+    inputFields: ['retry_context'],
+    outputFields: ['retry_count', 'success'],
+  },
+  {
     agent_id: 'custom_agent',
     name: '自定义 Agent 节点',
     description: '可在节点属性中定义角色、任务边界和专属提示词。',
@@ -206,7 +250,7 @@ function normalizeAgent(raw) {
     color: builtIn.color || raw.color || DEFAULT_NODE_COLOR,
     icon: builtIn.icon || raw.icon || 'user',
     stage: builtIn.stage || raw.stage || 'custom',
-    nodeType: raw.nodeType || (agentId === 'code_agent' ? 'code_agent' : agentId === 'human_approval' ? 'human_approval' : agentId.startsWith('branch_') ? 'condition' : agentId === 'custom_agent' ? 'custom_agent' : 'agent'),
+    nodeType: raw.nodeType || (agentId === 'code_agent' ? 'code_agent' : agentId === 'human_approval' ? 'human_approval' : agentId === 'tool_skill' || agentId.startsWith('skill:') ? 'tool_skill' : agentId === 'join_and' ? 'join_and' : agentId === 'join_or' ? 'join_or' : agentId === 'loop_controller' ? 'loop_controller' : agentId.startsWith('branch_') ? 'condition' : agentId === 'custom_agent' ? 'custom_agent' : 'agent'),
     inputFields: inputs || defaultFieldsForAgent(agentId).inputs,
     outputFields: outputs || defaultFieldsForAgent(agentId).outputs,
     enabled: raw.enabled ?? true,
@@ -255,6 +299,16 @@ function createNodeFromAgent(agent, position) {
             required: true,
           }
         : undefined,
+      toolSkillConfig: normalized.nodeType === 'tool_skill'
+        ? {
+            name: normalized.agent_id.startsWith('skill:') ? normalized.agent_id.slice(6) : '',
+            description: normalized.description || '',
+            parameters: normalized.parameters || { type: 'object', properties: {} },
+          }
+        : undefined,
+      loopPolicy: normalized.nodeType === 'loop_controller'
+        ? { maxIterations: 3, exitCondition: 'success == true' }
+        : undefined,
       customAgentMeta: normalized.nodeType === 'custom_agent'
         ? {
             role: '自定义智能体',
@@ -295,11 +349,22 @@ function normalizeWorkflowNode(node) {
 }
 
 function edgeDefaults(edge) {
+  const data = {
+    edgeType: 'control',
+    condition: '',
+    label: '',
+    fromOutputField: '',
+    toInputField: '',
+    loopPolicy: { maxIterations: 0 },
+    ...(edge.data || {}),
+  };
   return {
     type: 'smoothstep',
     markerEnd: { type: MarkerType.ArrowClosed, width: 18, height: 18 },
     style: { strokeWidth: 2 },
     ...edge,
+    label: edge.label || data.label || '',
+    data,
   };
 }
 
@@ -311,6 +376,19 @@ function splitFields(value) {
     .filter(Boolean);
 }
 
+const CONDITION_RE = /^[A-Za-z_][A-Za-z0-9_]*\s*(==|!=|>=|<=|>|<)\s*('[^']*'|"[^"]*"|true|false|null|none|-?\d+(\.\d+)?)$/i;
+const CONDITION_FIELDS = new Set(['success', 'test_success', 'approved', 'retry_count', 'max_retry_count', 'quality_score', 'coverage_percent', 'error_log', 'status', 'has_code_blocks']);
+
+function validateConditionExpression(condition) {
+  const normalized = String(condition || '').trim();
+  if (!normalized || ['always', 'default', 'else'].includes(normalized.toLowerCase())) return '';
+  const match = normalized.match(CONDITION_RE);
+  if (!match) return '条件只支持白名单字段与常量比较，例如 success == true';
+  const field = normalized.split(/\s+/)[0];
+  if (!CONDITION_FIELDS.has(field)) return `条件字段不在白名单内：${field}`;
+  return '';
+}
+
 function validateWorkflow(nodes, edges) {
   const issues = [];
   const nodeIds = new Set(nodes.map((node) => node.id));
@@ -320,6 +398,15 @@ function validateWorkflow(nodes, edges) {
   }
 
   edges.forEach((edge) => {
+    const edgeData = edge.data || {};
+    const edgeType = edgeData.edgeType || 'control';
+    const conditionError = validateConditionExpression(edgeData.condition);
+    if (conditionError) {
+      issues.push({ severity: 'error', title: '条件表达式不安全', message: conditionError, nodeId: edge.source });
+    }
+    if (edgeType === 'loop' && Number(edgeData.loopPolicy?.maxIterations || 0) <= 0) {
+      issues.push({ severity: 'error', title: '循环缺少上限', message: 'loop 连线必须配置 maxIterations，避免无限循环。', nodeId: edge.source });
+    }
     if (!nodeIds.has(edge.source)) {
       issues.push({ severity: 'error', title: '连线起点不存在', message: `连线 ${edge.id} 的起点节点不存在。` });
     }
@@ -468,6 +555,26 @@ export const useWorkflowStore = create((set, get) => ({
     set({
       nodes,
       validationIssues: validateWorkflow(nodes, get().edges),
+      isDirty: true,
+    });
+  },
+  updateEdgeData: (edgeId, dataPatch) => {
+    const edges = get().edges.map((edge) => {
+      if (edge.id !== edgeId) return edge;
+      return edgeDefaults({ ...edge, label: dataPatch.label || '', data: { ...(edge.data || {}), ...dataPatch } });
+    });
+    set({
+      edges,
+      validationIssues: validateWorkflow(get().nodes, edges),
+      isDirty: true,
+    });
+  },
+  deleteEdge: (edgeId) => {
+    const edges = get().edges.filter((edge) => edge.id !== edgeId);
+    set({
+      edges,
+      selectedEdgeId: get().selectedEdgeId === edgeId ? null : get().selectedEdgeId,
+      validationIssues: validateWorkflow(get().nodes, edges),
       isDirty: true,
     });
   },

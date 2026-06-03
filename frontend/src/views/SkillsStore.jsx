@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Activity, Sparkles, Search, X, Code, Globe, BarChart3, Terminal, Wrench, Cpu, Package, Plug, Plus, ExternalLink, Settings } from 'lucide-react';
+import { Activity, Sparkles, Search, X, Code, Globe, BarChart3, Terminal, Wrench, Cpu, Package, Plug, Plus, ExternalLink, Settings, GitBranch } from 'lucide-react';
 import Editor from '@monaco-editor/react';
 
 const API_BASE = `http://${window.location.hostname}:8000`;
@@ -54,6 +54,7 @@ SCHEMA = {
     }
 }`);
   const [importError, setImportError] = useState('');
+  const [convertingSkill, setConvertingSkill] = useState('');
 
   const fetchMarketSkills = async () => {
     try {
@@ -110,6 +111,26 @@ SCHEMA = {
       }
     } catch (e) {
       setImportError(`网络错误: ${e.message}`);
+    }
+  };
+
+  const handleConvertSkillToTemplate = async (skillName) => {
+    setConvertingSkill(skillName);
+    try {
+      const res = await fetch(`${API_BASE}/api/workflows/skills/${encodeURIComponent(skillName)}/to-template`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ save: true }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.detail || `HTTP ${res.status}`);
+      }
+      alert(`已转换为工作流模板：${data.template?.title || data.template_id}\n可以在 Workflow Templates 页面打开和继续编排。`);
+    } catch (e) {
+      alert(`转换失败：${e.message}`);
+    } finally {
+      setConvertingSkill('');
     }
   };
 
@@ -273,6 +294,28 @@ SCHEMA = {
                       参数: {Object.keys(skill.function.parameters.properties).join(', ')}
                     </div>
                   )}
+                  <button
+                    type="button"
+                    onClick={() => handleConvertSkillToTemplate(skill.function.name)}
+                    disabled={convertingSkill === skill.function.name}
+                    style={{
+                      marginTop: '4px',
+                      padding: '8px 10px',
+                      borderRadius: '10px',
+                      border: '1px solid var(--sys-color-surface-variant)',
+                      background: 'rgba(83, 140, 255, 0.1)',
+                      color: 'var(--sys-color-on-surface)',
+                      cursor: convertingSkill === skill.function.name ? 'wait' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      fontWeight: 700
+                    }}
+                  >
+                    <GitBranch size={15} />
+                    {convertingSkill === skill.function.name ? '正在转换...' : '转为工作流模板'}
+                  </button>
                 </div>
               );
             })}

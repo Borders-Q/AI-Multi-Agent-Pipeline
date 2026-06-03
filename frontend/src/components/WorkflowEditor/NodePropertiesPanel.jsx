@@ -44,10 +44,12 @@ function textToFields(value) {
 }
 
 export default function NodePropertiesPanel() {
-  const { nodes, edges, selectedNodeId, updateNodeData, deleteNode, validationIssues } = useWorkflowStore();
+  const { nodes, edges, selectedNodeId, selectedEdgeId, updateNodeData, updateEdgeData, deleteNode, deleteEdge, validationIssues } = useWorkflowStore();
   const selectedNode = nodes.find((node) => node.id === selectedNodeId);
+  const selectedEdge = edges.find((edge) => edge.id === selectedEdgeId);
   const [tab, setTab] = useState('basic');
   const [form, setForm] = useState({});
+  const [edgeForm, setEdgeForm] = useState({});
 
   useEffect(() => {
     if (!selectedNode) {
@@ -83,6 +85,22 @@ export default function NodePropertiesPanel() {
     });
     setTab('basic');
   }, [selectedNode]);
+
+  useEffect(() => {
+    if (!selectedEdge) {
+      setEdgeForm({});
+      return;
+    }
+    const data = selectedEdge.data || {};
+    setEdgeForm({
+      edgeType: data.edgeType || 'control',
+      label: data.label || '',
+      condition: data.condition || '',
+      fromOutputField: data.fromOutputField || '',
+      toInputField: data.toInputField || '',
+      maxIterations: data.loopPolicy?.maxIterations || 0,
+    });
+  }, [selectedEdge]);
 
   const nodeIssues = useMemo(
     () => validationIssues.filter((issue) => issue.nodeId === selectedNodeId),
@@ -147,6 +165,67 @@ export default function NodePropertiesPanel() {
           : selectedNode.data?.customAgentMeta,
     });
   };
+
+  const saveEdge = () => {
+    if (!selectedEdge) return;
+    updateEdgeData(selectedEdge.id, {
+      edgeType: edgeForm.edgeType || 'control',
+      label: edgeForm.label?.trim() || '',
+      condition: edgeForm.condition?.trim() || '',
+      fromOutputField: edgeForm.fromOutputField?.trim() || '',
+      toInputField: edgeForm.toInputField?.trim() || '',
+      loopPolicy: {
+        maxIterations: Number(edgeForm.maxIterations || 0),
+      },
+    });
+  };
+
+  if (!selectedNode && selectedEdge) {
+    const sourceNode = nodes.find((node) => node.id === selectedEdge.source);
+    const targetNode = nodes.find((node) => node.id === selectedEdge.target);
+    return (
+      <Paper className="inspector-paper" square>
+        <Box className="inspector-title">
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="overline" sx={{ color: 'var(--sys-color-primary)', lineHeight: 1 }}>
+              连线属性
+            </Typography>
+            <Typography variant="h6" noWrap sx={{ color: 'var(--sys-color-on-surface)' }}>
+              {sourceNode?.data?.label || selectedEdge.source} → {targetNode?.data?.label || selectedEdge.target}
+            </Typography>
+          </Box>
+          <Chip label={edgeForm.edgeType || 'control'} size="small" variant="outlined" />
+        </Box>
+
+        <Box className="inspector-scroll-area">
+          <Box className="properties-form">
+            <TextField select label="连线类型" size="small" value={edgeForm.edgeType || 'control'} onChange={(event) => setEdgeForm((prev) => ({ ...prev, edgeType: event.target.value }))} SelectProps={{ MenuProps: selectMenuProps }}>
+              <MenuItem value="control">control - 顺序执行</MenuItem>
+              <MenuItem value="branch">branch - 条件分支</MenuItem>
+              <MenuItem value="loop">loop - 循环重试</MenuItem>
+              <MenuItem value="data">data - 字段映射</MenuItem>
+            </TextField>
+            <TextField label="显示标签" size="small" value={edgeForm.label || ''} onChange={(event) => setEdgeForm((prev) => ({ ...prev, label: event.target.value }))} placeholder="例如：成功分支 / 失败重试 / else" />
+            <TextField label="条件表达式" size="small" value={edgeForm.condition || ''} onChange={(event) => setEdgeForm((prev) => ({ ...prev, condition: event.target.value }))} placeholder='success == true / status == "failed" / else' helperText="仅支持白名单字段与常量比较；else/default 作为兜底分支。" />
+            <TextField label="来源输出字段" size="small" value={edgeForm.fromOutputField || ''} onChange={(event) => setEdgeForm((prev) => ({ ...prev, fromOutputField: event.target.value }))} placeholder="from output field" />
+            <TextField label="目标输入字段" size="small" value={edgeForm.toInputField || ''} onChange={(event) => setEdgeForm((prev) => ({ ...prev, toInputField: event.target.value }))} placeholder="to input field" />
+            {edgeForm.edgeType === 'loop' && (
+              <TextField label="最大循环次数" type="number" size="small" value={edgeForm.maxIterations || 0} onChange={(event) => setEdgeForm((prev) => ({ ...prev, maxIterations: event.target.value }))} helperText="loop 连线必须配置大于 0 的上限，避免无限循环。" />
+            )}
+          </Box>
+        </Box>
+
+        <Box className="inspector-actions-bottom">
+          <Button variant="outlined" color="error" startIcon={<Trash2 size={16} />} onClick={() => deleteEdge(selectedEdge.id)}>
+            删除连线
+          </Button>
+          <Button variant="contained" onClick={saveEdge}>
+            保存连线
+          </Button>
+        </Box>
+      </Paper>
+    );
+  }
 
   if (!selectedNode) {
     return (
