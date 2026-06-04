@@ -610,6 +610,7 @@ class AgentWorkflowEngine:
         saved_artifacts = []
         saved_signatures = set()
         preview_urls_seen = set()
+        candidate_preview_urls_seen = set()
         
         # Extremely simple topological sort (or just sequential execution by x position for simplicity if edges are complex)
         # We will sort nodes by x position if edges don't enforce order, otherwise try simple topo
@@ -719,14 +720,31 @@ class AgentWorkflowEngine:
                     pass
             await asyncio.sleep(0.1)
 
-        async def emit_preview_urls(text, source):
+        async def emit_preview_urls(text, source, *, promote=False):
             if not (preview_policy.get("open_local_url") or preview_policy.get("detect_from_output")):
                 return
             for url in extract_local_urls(str(text or "")):
+                if not promote:
+                    if url in candidate_preview_urls_seen:
+                        continue
+                    candidate_preview_urls_seen.add(url)
+                    db.save_run_event(
+                        run_id,
+                        "WORKFLOW_PREVIEW_URL_CANDIDATE",
+                        "WorkflowEngine",
+                        "SKIPPED",
+                        f"检测到候选本地预览地址，但等待自动部署确认: {url}",
+                        json.dumps({
+                            "input_payload": {"source": source},
+                            "output_payload": {"url": url, "promoted": False},
+                        }, ensure_ascii=False),
+                        0
+                    )
+                    continue
                 if url in preview_urls_seen:
                     continue
                 preview_urls_seen.add(url)
-                self.preview_urls.append(url)
+                self.preview_urls = [url]
                 db.save_run_event(
                     run_id,
                     "WORKFLOW_PREVIEW_URL",
@@ -1064,11 +1082,10 @@ class AgentWorkflowEngine:
                             }, ensure_ascii=False),
                             0
                         )
-                        preview_url = "http://127.0.0.1:5000"
                         fallback_summary = (
                             f"\n\n代码生成节点没有交付可保存代码块，Ai Multi Agent 已按工程模板兜底生成并落盘到 `{workspace_dir}`：\n"
                             + "\n".join(f"- `{path}`" for path in fallback_saved_files)
-                            + f"\n\n预览服务会在全部工作区文件检查完成后自动启动；默认地址：{preview_url}"
+                            + "\n\n预览服务会在全部工作区文件检查完成后自动启动；最终地址以自动部署结果为准。"
                         )
                         node_result += fallback_summary
                 current_state_context += f"\n\n--- 节点 '{node_name}' 执行结果 ---\n{node_result}"
@@ -1247,7 +1264,7 @@ class AgentWorkflowEngine:
                     0
                 )
                 if deployment.get("browser_url"):
-                    await emit_preview_urls(deployment["browser_url"], "auto_deploy")
+                    await emit_preview_urls(deployment["browser_url"], "auto_deploy", promote=True)
                 detail = "服务已启动并推送到右侧浏览器。" if deployment.get("browser_url") else "已完成检查，但没有可打开的本地预览地址。"
                 await emit("自动部署与右侧预览", "done" if status == "SUCCESS" else "failed", detail)
                 final_reply += deployment_summary

@@ -10,9 +10,10 @@ from agent.token_usage import TokenAccumulator, empty_token_summary, usage_from_
 
 COMPLEX_ENGINEERING_PATTERNS = [
     r"完整.*(工程|项目|系统)",
-    r"(多文件|多个文件|项目结构|工程级|架构设计|重构|比赛展示|生产级)",
-    r"(写|做|开发|生成).*(系统|工程|项目|应用|网站|前端|后端|全栈|python工程|python 工程)",
+    r"(多文件|多个文件|项目结构|工程级|架构设计|重构|比赛展示|生产级|管理系统)",
+    r"(写|做|开发|生成|帮我生成|帮我写|帮我开发|帮我做).*(系统|工程|项目|应用|网站|前端|后端|全栈|python工程|python 工程|游戏|小游戏|工具|平台|服务)",
     r"(数据库|接口|api|前后端|登录|权限|部署|测试).*(实现|生成|开发|重构)",
+    r"(需要一个|给我一个).*(系统|项目|应用)",
     r"(complete|full|multi[-\s]?file|production).*(project|app|system|website|backend|frontend)",
     r"(build|create|develop|generate|implement|refactor).*(project|app|system|website|backend|frontend|database|api)",
     r"(architecture|scaffold|fullstack|full-stack|database|deployment).*(design|project|app|system|implementation)",
@@ -24,7 +25,7 @@ def is_complex_engineering_task(message: str) -> bool:
         return True
     if any(re.search(pattern, text, re.IGNORECASE) for pattern in COMPLEX_ENGINEERING_PATTERNS):
         return True
-    code_words = ["python", "react", "vue", "fastapi", "flask", "node", "数据库", "测试", "部署", "接口", "组件"]
+    code_words = ["python", "react", "vue", "fastapi", "flask", "node", "数据库", "测试", "部署", "接口", "组件", "游戏", "管理", "图书", "html", "css", "javascript"]
     action_words = ["写", "做", "开发", "生成", "实现", "重构", "修复", "搭建", "build", "create", "develop", "generate", "implement", "refactor"]
     return sum(word in text for word in code_words) >= 2 and any(word in text for word in action_words)
 

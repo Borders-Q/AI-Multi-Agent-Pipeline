@@ -7,11 +7,16 @@ $ErrorActionPreference = "Stop"
 
 $PipIndexUrl = "https://pypi.tuna.tsinghua.edu.cn/simple"
 $NpmRegistry = "https://mirrors.tuna.tsinghua.edu.cn/npm/"
+$PythonBootstrapVersion = "3.12.10"
+$PythonBootstrapUrl = "https://mirrors.tuna.tsinghua.edu.cn/python/$PythonBootstrapVersion/python-$PythonBootstrapVersion-amd64.exe"
 
 $ProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $FrontendDir = Join-Path $ProjectRoot "frontend"
 $VenvDir = Join-Path $ProjectRoot ".venv"
 $VenvPython = Join-Path $VenvDir "Scripts\python.exe"
+$LocalPythonDir = Join-Path $ProjectRoot ".python"
+$LocalPython = Join-Path $LocalPythonDir "python.exe"
+$InstallerCacheDir = Join-Path $ProjectRoot ".installer-cache"
 $BookManagerRequirements = Join-Path $ProjectRoot "book_manager\book_manager\requirements.txt"
 
 $PythonPackages = @(
@@ -81,29 +86,158 @@ function Get-RequiredCommand {
     throw "Missing command: $($Names -join ' or '). Install it and make sure it is available in PATH."
 }
 
+function Test-IsWindowsAppsAlias {
+    param([string]$Path)
+
+    if (-not $Path) {
+        return $false
+    }
+
+    return $Path -like "*\Microsoft\WindowsApps\*"
+}
+
+function Test-RealPython {
+    param([string]$Path)
+
+    if (-not $Path -or -not (Test-Path $Path) -or (Test-IsWindowsAppsAlias $Path)) {
+        return $false
+    }
+
+    try {
+        $resolved = (Resolve-Path $Path).Path
+        $probe = & $resolved -c "import sys, venv, ensurepip; print(sys.executable); print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>$null
+        if ($LASTEXITCODE -ne 0 -or -not $probe -or $probe.Count -lt 2) {
+            return $false
+        }
+
+        $versionText = [string]$probe[1]
+        $version = [Version]$versionText
+        if ($version.Major -ne 3 -or $version.Minor -lt 9 -or $version.Minor -gt 13) {
+            return $false
+        }
+
+        return $true
+    } catch {
+        return $false
+    }
+}
+
+function Resolve-RealPythonPath {
+    param([string]$Path)
+
+    if (Test-RealPython $Path) {
+        return (Resolve-Path $Path).Path
+    }
+
+    return $null
+}
+
+function Install-LocalPythonFromTsinghua {
+    if (Test-RealPython $LocalPython) {
+        return (Resolve-Path $LocalPython).Path
+    }
+
+    Write-Host "No usable Python 3.9-3.13 was found. Installing local Python $PythonBootstrapVersion from Tsinghua mirror." -ForegroundColor Yellow
+    Write-Host "Python source: $PythonBootstrapUrl" -ForegroundColor DarkYellow
+
+    New-Item -ItemType Directory -Path $InstallerCacheDir -Force | Out-Null
+    New-Item -ItemType Directory -Path $LocalPythonDir -Force | Out-Null
+
+    $installer = Join-Path $InstallerCacheDir "python-$PythonBootstrapVersion-amd64.exe"
+    if (-not (Test-Path $installer)) {
+        Invoke-WebRequest -Uri $PythonBootstrapUrl -OutFile $installer
+    } else {
+        Write-Host "Reusing cached Python installer: $installer" -ForegroundColor DarkGray
+    }
+
+    $arguments = @(
+        "/quiet",
+        "InstallAllUsers=0",
+        "TargetDir=$LocalPythonDir",
+        "Include_launcher=0",
+        "Include_test=0",
+        "Include_pip=1",
+        "Include_tcltk=0",
+        "PrependPath=0",
+        "Shortcuts=0"
+    )
+
+    Invoke-Native -FilePath $installer -Arguments $arguments
+    if (-not (Test-RealPython $LocalPython)) {
+        throw "Local Python installation failed or is not usable: $LocalPython"
+    }
+
+    return (Resolve-Path $LocalPython).Path
+}
+
 function Get-PreferredPython {
-    if ($env:SKYT_PYTHON -and (Test-Path $env:SKYT_PYTHON)) {
-        return (Resolve-Path $env:SKYT_PYTHON).Path
+    param([bool]$AllowBootstrap = $true)
+
+    if ($env:SKYT_PYTHON) {
+        $envPython = Resolve-RealPythonPath $env:SKYT_PYTHON
+        if ($envPython) {
+            return $envPython
+        }
+        Write-Host "SKYT_PYTHON is set but is not a usable Python 3.9-3.13 executable: $env:SKYT_PYTHON" -ForegroundColor DarkYellow
+    }
+
+    $projectPython = Resolve-RealPythonPath $LocalPython
+    if ($projectPython) {
+        return $projectPython
     }
 
     $localAppData = [Environment]::GetFolderPath("LocalApplicationData")
-    $commonPythonPaths = @(
-        (Join-Path $localAppData "Programs\Python\Python312\python.exe"),
-        (Join-Path $localAppData "Programs\Python\Python311\python.exe"),
-        (Join-Path $localAppData "Programs\Python\Python313\python.exe"),
-        (Join-Path $localAppData "Programs\Python\Python310\python.exe"),
-        (Join-Path $localAppData "Programs\Python\Python39\python.exe"),
-        (Join-Path $localAppData "Programs\Python\Python314\python.exe")
+    $candidatePaths = New-Object System.Collections.Generic.List[string]
+    $searchRoots = @(
+        (Join-Path $localAppData "Programs\Python"),
+        "C:\Program Files\Python",
+        "C:\Program Files (x86)\Python",
+        "C:\",
+        "D:\"
     )
-    foreach ($candidate in $commonPythonPaths) {
-        if (Test-Path $candidate) {
-            return (Resolve-Path $candidate).Path
+
+    foreach ($root in $searchRoots) {
+        if (Test-Path $root) {
+            Get-ChildItem -Path $root -Directory -Filter "Python*" -ErrorAction SilentlyContinue |
+                ForEach-Object {
+                    $candidatePaths.Add((Join-Path $_.FullName "python.exe"))
+                }
+        }
+    }
+
+    foreach ($name in @("python", "python3")) {
+        $commands = Get-Command $name -All -ErrorAction SilentlyContinue
+        foreach ($command in $commands) {
+            $candidatePaths.Add($command.Source)
+        }
+    }
+
+    $preferredOrder = @("Python312", "Python311", "Python310", "Python313", "Python39")
+    $orderedCandidates = $candidatePaths |
+        Where-Object { $_ } |
+        Select-Object -Unique |
+        Sort-Object {
+            $path = $_
+            $rank = 99
+            for ($i = 0; $i -lt $preferredOrder.Count; $i++) {
+                if ($path -like "*$($preferredOrder[$i])*") {
+                    $rank = $i
+                    break
+                }
+            }
+            $rank
+        }, { $_ }
+
+    foreach ($candidate in $orderedCandidates) {
+        $realPython = Resolve-RealPythonPath $candidate
+        if ($realPython) {
+            return $realPython
         }
     }
 
     $pyLauncher = Get-Command "py" -ErrorAction SilentlyContinue
-    if ($pyLauncher) {
-        $preferredVersions = @("3.12", "3.11", "3.13", "3.10", "3.9", "3.14")
+    if ($pyLauncher -and -not (Test-IsWindowsAppsAlias $pyLauncher.Source)) {
+        $preferredVersions = @("3.12", "3.11", "3.10", "3.13", "3.9")
         foreach ($version in $preferredVersions) {
             $candidate = $null
             try {
@@ -111,25 +245,27 @@ function Get-PreferredPython {
             } catch {
                 continue
             }
-            if ($LASTEXITCODE -eq 0 -and $candidate -and (Test-Path $candidate)) {
-                $actualVersion = & $candidate -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>$null
-                if ($actualVersion -ne $version) {
-                    continue
-                }
-                return (Resolve-Path $candidate).Path
+            $realPython = Resolve-RealPythonPath $candidate
+            if ($LASTEXITCODE -eq 0 -and $realPython) {
+                return $realPython
             }
         }
     }
 
-    return Get-RequiredCommand @("python")
+    if ($AllowBootstrap) {
+        return Install-LocalPythonFromTsinghua
+    }
+
+    throw "No usable Python 3.9-3.13 was found. Run without -DryRun to bootstrap local Python from the Tsinghua mirror."
 }
 
 Write-Title "Ai Multi Agent dependency installer"
 Write-Host "Project root: $ProjectRoot"
 Write-Host "pip index: $PipIndexUrl"
 Write-Host "npm registry: $NpmRegistry"
+Write-Host "Python bootstrap source: $PythonBootstrapUrl"
 
-$SystemPython = Get-PreferredPython
+$SystemPython = Get-PreferredPython -AllowBootstrap (-not $DryRun)
 $NodeExe = Get-RequiredCommand @("node")
 $NpmExe = Get-RequiredCommand @("npm.cmd", "npm")
 

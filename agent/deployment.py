@@ -72,6 +72,42 @@ def _port_open(port: int, host: str = "127.0.0.1") -> bool:
         return False
 
 
+def _find_free_port(start_port: int, host: str = "127.0.0.1", limit: int = 120) -> int:
+    port = max(1024, int(start_port or 5000))
+    for candidate in range(port, port + limit):
+        if not _port_open(candidate, host):
+            return candidate
+    raise RuntimeError(f"No free local port found from {port} to {port + limit - 1}.")
+
+
+def _write_flask_preview_launcher(app_dir: Path, app_entry: Path, port: int) -> Path:
+    launcher = app_dir / ".ai_multi_agent_preview.py"
+    launcher.write_text(
+        "\n".join([
+            "import importlib.util",
+            "import sys",
+            "from pathlib import Path",
+            "",
+            f"entry = Path(r'''{str(app_entry)}''')",
+            "sys.path.insert(0, str(entry.parent))",
+            "spec = importlib.util.spec_from_file_location('ai_multi_agent_preview_app', entry)",
+            "module = importlib.util.module_from_spec(spec)",
+            "assert spec and spec.loader",
+            "spec.loader.exec_module(module)",
+            "init_db = getattr(module, 'init_db', None)",
+            "if callable(init_db):",
+            "    init_db()",
+            "app = getattr(module, 'app', None) or getattr(module, 'application', None)",
+            "if app is None:",
+            "    raise RuntimeError('Flask app object named app/application was not found.')",
+            f"app.run(host='127.0.0.1', port={int(port)}, debug=False, use_reloader=False)",
+            "",
+        ]),
+        encoding="utf-8",
+    )
+    return launcher
+
+
 def _scan_workspace(workspace: Path) -> dict:
     files = []
     flask_candidates = []
@@ -178,9 +214,14 @@ def deploy_workspace_preview(workspace: str) -> dict:
         app_dir = candidate["dir"]
         app_entry = candidate["entry"]
         requirements = app_dir / "requirements.txt"
-        port = _parse_flask_port(app_entry)
+        requested_port = _parse_flask_port(app_entry)
+        port_conflict = _port_open(requested_port)
+        port = _find_free_port(requested_port + 1 if port_conflict else requested_port)
         result["runtime"] = "flask"
         result["entry"] = _rel(app_entry, base)
+        result["requested_port"] = requested_port
+        result["port"] = port
+        result["port_conflict"] = port_conflict
 
         if requirements.exists():
             install = _run(
@@ -198,31 +239,39 @@ def deploy_workspace_preview(workspace: str) -> dict:
             return result
 
         url = f"http://127.0.0.1:{port}"
-        if _port_open(port):
-            result["status"] = "success"
-            result["browser_url"] = url
-            result["started_services"].append({"kind": "flask", "url": url, "status": "already_running"})
-            return result
-
-        command = f'"{sys.executable}" "{app_entry.name}"'
+        launcher = _write_flask_preview_launcher(app_dir, app_entry, port)
+        command = f'"{sys.executable}" "{launcher.name}"'
         start = start_background_service(command, str(app_dir))
         ok = not start.startswith("Error:")
         result["steps"].append({"name": "start_flask_service", "command": command, "cwd": str(app_dir), "ok": ok, "output": start[-4000:]})
         result["status"] = "success" if ok else "failed"
         result["browser_url"] = url if ok else None
-        result["started_services"].append({"kind": "flask", "url": url, "status": "started" if ok else "failed"})
+        service_status = "started_on_alternate_port" if ok and port_conflict else ("started" if ok else "failed")
+        result["started_services"].append({
+            "kind": "flask",
+            "url": url,
+            "status": service_status,
+            "requested_port": requested_port,
+            "port": port,
+            "port_conflict": port_conflict,
+        })
         return result
 
     if scan["_packages"]:
         candidate = scan["_packages"][0]
         package_dir = candidate["dir"]
         package_json = candidate["entry"]
-        port = _parse_dev_port(package_json)
+        requested_port = _parse_dev_port(package_json)
+        port_conflict = _port_open(requested_port)
+        port = _find_free_port(requested_port + 1 if port_conflict else requested_port)
         result["runtime"] = "node"
         result["entry"] = _rel(package_json, base)
+        result["requested_port"] = requested_port
+        result["port"] = port
+        result["port_conflict"] = port_conflict
 
         if not (package_dir / "node_modules").exists():
-            install = _run(["npm", "install"], package_dir, timeout=240)
+            install = _run(["npm", "install", "--registry", "https://mirrors.tuna.tsinghua.edu.cn/npm/"], package_dir, timeout=240)
             result["steps"].append({"name": "npm_install", **install})
             if not install["ok"]:
                 result["status"] = "failed"
@@ -230,19 +279,21 @@ def deploy_workspace_preview(workspace: str) -> dict:
                 return result
 
         url = f"http://127.0.0.1:{port}"
-        if _port_open(port):
-            result["status"] = "success"
-            result["browser_url"] = url
-            result["started_services"].append({"kind": "node", "url": url, "status": "already_running"})
-            return result
-
-        command = "npm run dev -- --host 127.0.0.1"
+        command = f"npm run dev -- --host 127.0.0.1 --port {port}"
         start = start_background_service(command, str(package_dir))
         ok = not start.startswith("Error:")
         result["steps"].append({"name": "start_node_dev_server", "command": command, "cwd": str(package_dir), "ok": ok, "output": start[-4000:]})
         result["status"] = "success" if ok else "failed"
         result["browser_url"] = url if ok else None
-        result["started_services"].append({"kind": "node", "url": url, "status": "started" if ok else "failed"})
+        service_status = "started_on_alternate_port" if ok and port_conflict else ("started" if ok else "failed")
+        result["started_services"].append({
+            "kind": "node",
+            "url": url,
+            "status": service_status,
+            "requested_port": requested_port,
+            "port": port,
+            "port_conflict": port_conflict,
+        })
         return result
 
     if scan["_static"]:
@@ -251,8 +302,7 @@ def deploy_workspace_preview(workspace: str) -> dict:
         port = 5500
         result["runtime"] = "static"
         result["entry"] = _rel(candidate["entry"], base)
-        while _port_open(port) and port < 5520:
-            port += 1
+        port = _find_free_port(port, limit=120)
         url = f"http://127.0.0.1:{port}"
         command = f'"{sys.executable}" -m http.server {port} --bind 127.0.0.1'
         start = start_background_service(command, str(static_dir))
@@ -278,7 +328,12 @@ def format_deployment_summary(result: dict) -> str:
             f"- 运行入口：`{result.get('entry') or result.get('runtime') or 'unknown'}`",
         ]
         for service in result.get("started_services") or []:
-            lines.append(f"- 服务：{service.get('kind')} / {service.get('status')} / {service.get('url')}")
+            requested_port = service.get("requested_port")
+            actual_port = service.get("port")
+            port_note = ""
+            if service.get("port_conflict") and requested_port and actual_port and requested_port != actual_port:
+                port_note = f"（端口 {requested_port} 被占用，已自动使用 {actual_port}）"
+            lines.append(f"- 服务：{service.get('kind')} / {service.get('status')} / {service.get('url')}{port_note}")
         if result.get("browser_url"):
             lines.append(f"- 右侧浏览器预览：{result['browser_url']}")
         return "\n".join(lines)

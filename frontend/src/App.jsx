@@ -1237,7 +1237,9 @@ function App() {
     if (!textToSend.trim() || isLoading) return;
     let requestStarted = false;
     try {
-      const shouldRunSessionWorkflow = workflowMode === 'session_workflow' && sessionWorkflowSummary && !options.force_api && !options.context_bundle;
+      const shouldRunSessionWorkflow = sessionWorkflowSummary
+        && !options.force_api
+        && !options.context_bundle;
       const workflowSummaryForRequest = options.workflowSummary || (shouldRunSessionWorkflow ? sessionWorkflowSummary : null);
       let requestWorkspace = options.workspaceOverride || workspacePath;
       if (workflowNeedsWorkspace(workflowSummaryForRequest, textToSend) && !requestWorkspace) {
