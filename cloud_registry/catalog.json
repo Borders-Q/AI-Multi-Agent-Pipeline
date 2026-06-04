@@ -1,0 +1,226 @@
+[
+  {
+    "id": "slack_notifier",
+    "name": "Slack_Notifier",
+    "description": "Send notifications to a Slack channel.",
+    "icon": "💬",
+    "url": "/skills/slack_notifier.py"
+  },
+  {
+    "id": "notion_sync",
+    "name": "Notion_Page_Sync",
+    "description": "Sync or create content in Notion workspaces.",
+    "icon": "📓",
+    "url": "/skills/notion_sync.py"
+  },
+  {
+    "id": "jira_ticket",
+    "name": "Jira_Ticket_Creator",
+    "description": "Create and manage Jira tickets for agile teams.",
+    "icon": "🎫",
+    "url": "/skills/jira_ticket.py"
+  },
+  {
+    "id": "postgres_query",
+    "name": "PostgreSQL_Query",
+    "description": "Execute read-only SQL queries on production DB.",
+    "icon": "🐘",
+    "url": "/skills/postgres_query.py"
+  },
+  {
+    "id": "mysql_analyzer",
+    "name": "MySQL_Analyzer",
+    "description": "Analyze MySQL schemas and query performance.",
+    "icon": "🐬",
+    "url": "/skills/mysql_analyzer.py"
+  },
+  {
+    "id": "aws_s3_manager",
+    "name": "AWS_S3_Manager",
+    "description": "List, upload, or download objects from Amazon S3.",
+    "icon": "☁️",
+    "url": "/skills/aws_s3_manager.py"
+  },
+  {
+    "id": "github_repo_analyzer",
+    "name": "Github_Repo_Analyzer",
+    "description": "Fetch stars, forks, and stats for a Github Repo.",
+    "icon": "🐙",
+    "url": "/skills/github_repo_analyzer.py"
+  },
+  {
+    "id": "crypto_tracker",
+    "name": "Crypto_Price_Tracker",
+    "description": "Fetch real-time USD prices for cryptocurrencies.",
+    "icon": "💰",
+    "url": "/skills/crypto_tracker.py"
+  },
+  {
+    "id": "puppeteer_scraper",
+    "name": "Puppeteer_Scraper",
+    "description": "Run headless browser automation to scrape dynamic pages.",
+    "icon": "🕸️",
+    "url": "/skills/puppeteer_scraper.py"
+  },
+  {
+    "id": "kubernetes_pod_monitor",
+    "name": "K8s_Pod_Monitor",
+    "description": "Monitor health and logs of Kubernetes pods.",
+    "icon": "☸️",
+    "url": "/skills/kubernetes_pod_monitor.py"
+  },
+  {
+    "id": "docker_manager",
+    "name": "Docker_Container_Manager",
+    "description": "Manage local or remote Docker containers.",
+    "icon": "🐳",
+    "url": "/skills/docker_manager.py"
+  },
+  {
+    "id": "google_drive_search",
+    "name": "Google_Drive_Search",
+    "description": "Search for documents in Google Drive.",
+    "icon": "📂",
+    "url": "/skills/google_drive_search.py"
+  },
+  {
+    "id": "salesforce_crm",
+    "name": "Salesforce_Lead_Fetch",
+    "description": "Fetch lead and opportunity data from Salesforce.",
+    "icon": "☁️",
+    "url": "/skills/salesforce_crm.py"
+  },
+  {
+    "id": "stripe_payments",
+    "name": "Stripe_Payments_Viewer",
+    "description": "View recent transactions and subscriptions on Stripe.",
+    "icon": "💳",
+    "url": "/skills/stripe_payments.py"
+  },
+  {
+    "id": "zendesk_support",
+    "name": "Zendesk_Ticket_Manager",
+    "description": "Manage customer support tickets in Zendesk.",
+    "icon": "🎧",
+    "url": "/skills/zendesk_support.py"
+  },
+  {
+    "id": "hubspot_marketing",
+    "name": "Hubspot_Campaign_Stats",
+    "description": "Retrieve marketing campaign performance from Hubspot.",
+    "icon": "📈",
+    "url": "/skills/hubspot_marketing.py"
+  },
+  {
+    "id": "figma_asset_export",
+    "name": "Figma_Asset_Exporter",
+    "description": "Export design assets and tokens from Figma files.",
+    "icon": "🎨",
+    "url": "/skills/figma_asset_export.py"
+  },
+  {
+    "id": "vercel_deploy",
+    "name": "Vercel_Deploy_Trigger",
+    "description": "Trigger new deployments on Vercel.",
+    "icon": "▲",
+    "url": "/skills/vercel_deploy.py"
+  },
+  {
+    "id": "cloudflare_dns",
+    "name": "Cloudflare_DNS_Manager",
+    "description": "Manage DNS records via Cloudflare API.",
+    "icon": "☁️",
+    "url": "/skills/cloudflare_dns.py"
+  },
+  {
+    "id": "datadog_metrics",
+    "name": "Datadog_Metrics_Viewer",
+    "description": "View APM and infrastructure metrics from Datadog.",
+    "icon": "🐶",
+    "url": "/skills/datadog_metrics.py"
+  },
+  {
+    "id": "pagerduty_oncall",
+    "name": "PagerDuty_Oncall_Alert",
+    "description": "Trigger or acknowledge PagerDuty incidents.",
+    "icon": "📟",
+    "url": "/skills/pagerduty_oncall.py"
+  },
+  {
+    "id": "sentry_error_tracker",
+    "name": "Sentry_Error_Tracker",
+    "description": "Fetch latest unhandled exceptions from Sentry.",
+    "icon": "🐛",
+    "url": "/skills/sentry_error_tracker.py"
+  },
+  {
+    "id": "elastic_search",
+    "name": "ElasticSearch_Query",
+    "description": "Query massive log indices in ElasticSearch.",
+    "icon": "🔍",
+    "url": "/skills/elastic_search.py"
+  },
+  {
+    "id": "redis_cache_viewer",
+    "name": "Redis_Cache_Viewer",
+    "description": "View or invalidate keys in Redis cache.",
+    "icon": "🔴",
+    "url": "/skills/redis_cache_viewer.py"
+  },
+  {
+    "id": "mongodb_document",
+    "name": "MongoDB_Document_Finder",
+    "description": "Find NoSQL documents in MongoDB clusters.",
+    "icon": "🍃",
+    "url": "/skills/mongodb_document.py"
+  },
+  {
+    "id": "gmail_sender",
+    "name": "Gmail_Automated_Sender",
+    "description": "Draft and send emails via Gmail API.",
+    "icon": "✉️",
+    "url": "/skills/gmail_sender.py"
+  },
+  {
+    "id": "calendar_scheduler",
+    "name": "Google_Calendar_Scheduler",
+    "description": "Schedule meetings and check availability.",
+    "icon": "📅",
+    "url": "/skills/calendar_scheduler.py"
+  },
+  {
+    "id": "zoom_meeting",
+    "name": "Zoom_Meeting_Creator",
+    "description": "Generate Zoom meeting links programmatically.",
+    "icon": "📹",
+    "url": "/skills/zoom_meeting.py"
+  },
+  {
+    "id": "youtube_stats",
+    "name": "YouTube_Video_Stats",
+    "description": "Fetch view count and metrics for YouTube videos.",
+    "icon": "▶️",
+    "url": "/skills/youtube_stats.py"
+  },
+  {
+    "id": "twitter_sentiment",
+    "name": "Twitter_Sentiment_Analyzer",
+    "description": "Analyze public sentiment on specific topics.",
+    "icon": "🐦",
+    "url": "/skills/twitter_sentiment.py"
+  },
+  {
+    "id": "weather_radar",
+    "name": "Global_Weather_Radar",
+    "description": "Fetch high-precision weather forecasts globally.",
+    "icon": "⛅",
+    "url": "/skills/weather_radar.py"
+  },
+  {
+    "id": "stock_market",
+    "name": "WallStreet_Stock_Ticker",
+    "description": "Real-time NASDAQ/NYSE stock prices and PE ratios.",
+    "icon": "📉",
+    "url": "/skills/stock_market.py"
+  }
+]

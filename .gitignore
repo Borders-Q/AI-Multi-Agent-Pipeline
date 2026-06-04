@@ -1,23 +1,75 @@
 ### AL ###
-#Template for AL projects for Dynamics 365 Business Central
-#launch.json folder
+# Template for AL projects for Dynamics 365 Business Central
+# launch.json folder
 .vscode/
-#Cache folder
+# Cache folder
 .alcache/
-#Symbols folder
+# Symbols folder
 .alpackages/
-#Snapshots folder
+# Snapshots folder
 .snapshots/
-#Testing Output folder
+# Testing Output folder
 .output/
-#Extension App-file
+# Extension App-file
 *.app
-#Rapid Application Development File
+# Rapid Application Development File
 rad.json
-#Translation Base-file
+# Translation Base-file
 *.g.xlf
-#License-files
+# License-files
 *.bclicense
 *.flf
-#Test results file
+# Test results file
 TestResults.xml
+
+# Secrets and local environment
+.env
+.env.*
+!.env.example
+
+# Python runtime/cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+env/
+
+# Node/Vite
+node_modules/
+frontend/node_modules/
+dist/
+frontend/dist/
+.vite/
+frontend/.vite/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Logs and local process state
+logs/
+*.log
+skyt_pids.json
+registry_log.txt
+test_start.txt
+reconstructed_app_parts.txt
+
+# Local databases and generated runtime data
+*.db
+*.sqlite
+*.sqlite3
+memory/*.jsonl
+reports_dump.json
+
+# Generated workspaces and export outputs
+workspace/
+outputs/
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+.idea/
