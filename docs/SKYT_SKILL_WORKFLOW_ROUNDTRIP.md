@@ -4,7 +4,7 @@
 
 ## 目标
 
-本功能不是把 Trae 或 Skills Store 重新实现一遍，而是让比赛演示可以清楚展示：
+本功能不是把 Trec/SOLO 或 Skills Store 重新实现一遍，而是让比赛演示可以清楚展示：
 
 - 工作流模板可以导出为 Trec/SOLO 项目级 Skill；
 - 导出的 Skill 可以再次导入 Ai Multi Agent，恢复成工作流模板；
@@ -37,7 +37,7 @@
 }
 ```
 
-`mode=download` 返回 zip；`mode=workspace` 保存到 `<workspace>/.agents/skills/<skill-name>/`。
+`mode=download` 返回 zip；`mode=workspace` 保存到 `<workspace>/.agents/skills/<skill-name>/`。`workspace` 应传 Trec/SOLO 当前项目根目录。
 
 ### 导出当前编辑器工作流为 Trec/SOLO Skill
 
@@ -86,7 +86,7 @@
 
 ## 导出的 Trec/SOLO Skill 结构
 
-工作区保存模式会生成：
+安装到 Trec/SOLO 项目模式会生成：
 
 ```text
 <workspace>/
@@ -132,13 +132,13 @@
 推荐演示顺序：
 
 1. 打开 Workflow Templates，选择一个官方比赛模板。
-2. 点击“导出 Trec/SOLO Skill”，下载 zip 或保存到工作区。
+2. 点击“导出 Trec/SOLO Skill”，下载 zip 或安装到 Trec/SOLO 项目。
 3. 再点击“导入 Skill 为模板”，上传刚才的 zip。
 4. 模板列表出现导入模板，打开编辑器，说明节点、边和元信息被恢复。
 5. 打开 Skills Store，选择 `web_search` 或 `write_file`，点击“转为工作流模板”。
 6. 回到 Workflow Templates，展示系统技能被转换成可编辑工作流。
 
-这条路径重点展示“模板、Skill、工作流、回放、报告”的工程化闭环，不需要现场解释 Trae 的全部生态。
+这条路径重点展示“模板、Skill、工作流、回放、报告”的工程化闭环，不需要现场解释 Trec/SOLO 的全部生态。
 
 ## 不要随意改动的边界
 

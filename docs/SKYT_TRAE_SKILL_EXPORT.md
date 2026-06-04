@@ -16,14 +16,14 @@
       workflow.json
 ```
 
-保存到工作区模式会写入：
+安装到 Trec/SOLO 项目模式会写入：
 
 ```text
 <workspace>/.agents/skills/<skill-name>/SKILL.md
 <workspace>/.agents/skills/<skill-name>/workflow.json
 ```
 
-`SKILL.md` 是给 Trae Agent 阅读和执行的流程说明，`workflow.json` 只作为 Ai Multi Agent 原始节点结构的参考文件。
+`SKILL.md` 是给 Trec/SOLO Agent 阅读和执行的流程说明，`workflow.json` 只作为 Ai Multi Agent 原始节点结构的参考文件。
 
 ## 前端入口
 
@@ -33,7 +33,8 @@
 模板页支持两种方式：
 
 - “下载 Skill 包”：浏览器直接下载 zip。
-- “保存到工作区”：写入已绑定工作区的 `.agents/skills/` 目录；未绑定时应先绑定工作区。
+- “安装到 Trec/SOLO 项目”：选择 Trec/SOLO 当前打开的项目根目录，并写入该目录下的 `.agents/skills/`。
+- 如果误选了项目内的 `.agents` 或 `.agents/skills` 目录，后端会自动归一化到项目根，避免生成嵌套目录。
 
 编辑器入口当前默认下载当前画布生成的 zip，适合快速演示“画布 -> Skill 包”的闭环。
 
@@ -51,7 +52,7 @@ Content-Type: application/json
 }
 ```
 
-`mode=download` 返回 zip；`mode=workspace` 写入 `<workspace>/.agents/skills/`。
+`mode=download` 返回 zip；`mode=workspace` 写入 `<workspace>/.agents/skills/`。`workspace` 应传 Trec/SOLO 项目根目录。
 
 ### 导出当前编辑器工作流
 
@@ -104,7 +105,7 @@ Content-Type: application/json
 - 推荐触发方式：来自模板 `meta.recommended_user_prompt`。
 - 工作流策略：说明是否需要工作区、GPU、API、预览和落盘。
 - 节点分工：按画布节点顺序列出每个 Agent 的职责、输入和输出。
-- 执行步骤：把节点顺序转成 Trae 可跟随的操作流程。
+- 执行步骤：把节点顺序转成 Trec/SOLO 可跟随的操作流程。
 - 预期产出：来自模板 `meta.expected_outputs`。
 - Replay / Report 展示重点：服务比赛讲解。
 - 安全边界：写文件前确认工作区，危险操作需要用户确认，不展示模型隐藏推理链。
@@ -118,7 +119,7 @@ Content-Type: application/json
 3. 点击“导出 Trec/SOLO Skill”，下载 zip。
 4. 解压后展示 `SKILL.md`，说明 Ai Multi Agent 可以把可视化工作流沉淀成外部 Agent 工具可读的 Skill。
 5. 再点击“导入 Skill 为模板”，上传刚才的 zip，展示模板可恢复到 Workflow Editor。
-6. 绑定工作区后演示“保存到工作区”，展示 `.agents/skills/<skill-name>/` 结构。
+6. 点击“安装到 Trec/SOLO 项目”，选择 Trec/SOLO 项目根目录，展示 `.agents/skills/<skill-name>/` 结构。
 7. 打开 Skills Store，选择一个系统技能并点击“转为工作流模板”，展示系统工具也能进入模板编排。
 
 ## 维护边界
@@ -127,7 +128,7 @@ Content-Type: application/json
 - 不要把 Ai Multi Agent 内部工具实现直接复制进 Trec/SOLO Skill；本轮只导出流程说明和 `workflow.json` 参考结构。
 - 不要把 Skill 写成宣传文案；它应该是 Agent 可执行的流程约束。
 - 不要在 `SKILL.md` 中暴露模型隐藏推理链，只描述可见执行步骤和安全规则。
-- 如果后续 Trae 官方 Skill 格式变化，优先修改 `agent/trae_skill_exporter.py`，再同步本文件。
+- 如果后续 Trec/SOLO Skill 格式变化，优先修改 `agent/trae_skill_exporter.py`，再同步本文件。
 - 导入 Trec/SOLO Skill 的解析规则在 `agent/skill_workflow_importer.py`，不要把上传文件里的代码执行权接入后端。
 
 ## 核心文件

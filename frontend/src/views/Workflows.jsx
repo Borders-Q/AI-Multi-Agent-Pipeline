@@ -338,13 +338,18 @@ export default function Workflows({ sessionId = 'default', onRunWorkflowTemplate
     if (!selectedTemplate) return;
     setExporting(true);
     setNotice('');
+    let targetWorkspace = workspacePath;
     try {
-      let targetWorkspace = workspacePath;
-      if (mode === 'workspace' && !targetWorkspace) {
-        targetWorkspace = await onBindWorkspace?.();
+      if (mode === 'workspace' && onBindWorkspace) {
+        const selected = await onBindWorkspace();
+        if (!selected) {
+          setNotice('已取消安装。请在安装时选择 Trec/SOLO 当前打开的项目根目录，例如 E:\\比赛，不要选择 E:\\比赛\\SkyT。');
+          return;
+        }
+        targetWorkspace = selected;
       }
       if (mode === 'workspace' && !targetWorkspace) {
-        setNotice('导出到工作区前需要先绑定工作区。');
+        setNotice('安装到 Trec/SOLO 项目前需要先选择项目根目录，例如 E:\\比赛，不要选择 E:\\比赛\\SkyT。');
         return;
       }
 
@@ -365,11 +370,14 @@ export default function Workflows({ sessionId = 'default', onRunWorkflowTemplate
       } else {
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
-        setNotice(`Trec/SOLO Skill 已保存到：${data.target_dir}`);
+        setNotice(`Trec/SOLO Skill 已安装到：${data.skill_path || data.target_dir}。请回到 SOLO「技能与命令」页面点击刷新。`);
       }
       setExportDialogOpen(false);
     } catch (e) {
-      setNotice(`导出 Trec/SOLO Skill 失败：${e.message}`);
+      const targetHint = mode === 'workspace'
+        ? `目标目录：${targetWorkspace || '未选择'}。请选择 Trec/SOLO 当前项目根目录，例如 E:\\比赛，不要选择 E:\\比赛\\SkyT。`
+        : '';
+      setNotice(`导出 Trec/SOLO Skill 失败：${e.message}${targetHint ? ` ${targetHint}` : ''}`);
     } finally {
       setExporting(false);
     }
@@ -606,19 +614,22 @@ export default function Workflows({ sessionId = 'default', onRunWorkflowTemplate
         <DialogTitle>导出为 Trec/SOLO Skill</DialogTitle>
         <DialogContent sx={{ display: 'grid', gap: 1.5, pt: 1, color: 'var(--sys-color-on-surface)' }}>
           <Typography variant="body2" sx={{ color: 'var(--sys-color-on-surface-variant)' }}>
-            将当前工作流模板转换为 Trec/SOLO 可识别的项目级 Skill，结构为 <code>.agents/skills/&lt;skill-name&gt;/SKILL.md</code>。
+            将当前工作流模板转换为 Trec/SOLO 可识别的项目级 Skill。安装时请选择 Trec/SOLO 当前项目根目录，例如 <code>E:\比赛</code>，不要选择 <code>E:\比赛\SkyT</code>。
+          </Typography>
+          <Typography variant="body2" sx={{ color: 'var(--sys-color-on-surface-variant)' }}>
+            生成结构：<code>.agents/skills/&lt;skill-name&gt;/SKILL.md</code>
           </Typography>
           <Typography variant="body2">
             当前模板：{selectedTemplate?.title || '未选择模板'}
           </Typography>
           <Typography variant="caption" sx={{ color: 'var(--sys-color-on-surface-variant)' }}>
-            已绑定工作区：{workspacePath || '未绑定'}
+            当前绑定目录：{workspacePath || '未绑定；点击“安装到 Trec/SOLO 项目”后会弹出目录选择'}
           </Typography>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setExportDialogOpen(false)} disabled={exporting}>取消</Button>
           <Button onClick={() => handleExportTemplateSkill('workspace')} disabled={exporting} variant="outlined">
-            保存到工作区
+            安装到 Trec/SOLO 项目
           </Button>
           <Button onClick={() => handleExportTemplateSkill('download')} disabled={exporting} variant="contained" startIcon={exporting ? <CircularProgress size={15} /> : <Download size={16} />}>
             下载 Skill 包

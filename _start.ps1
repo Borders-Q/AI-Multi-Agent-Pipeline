@@ -8,6 +8,15 @@ $Host.UI.RawUI.WindowTitle = "Ai Multi Agent 系统 - 一键启动"
 
 $baseDir = $PSScriptRoot
 
+$venvPython = Join-Path $baseDir ".venv\Scripts\python.exe"
+if (Test-Path $venvPython) {
+    $pythonExe = $venvPython
+    Write-Host "检测到项目虚拟环境，将使用: $pythonExe" -ForegroundColor Green
+} else {
+    $pythonExe = "python"
+    Write-Host "未检测到 .venv，将回退系统 Python。建议先运行：一键安装依赖.bat" -ForegroundColor Yellow
+}
+
 
 
 Write-Host "==================================="
@@ -20,7 +29,7 @@ Write-Host "==================================="
 
 Write-Host "[1/3] 启动后端服务 (FastAPI)..." -ForegroundColor Yellow
 
-Start-Process -FilePath "cmd.exe" -ArgumentList "/c", "python", "-m", "uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8000" -WorkingDirectory $baseDir -WindowStyle Minimized
+Start-Process -FilePath $pythonExe -ArgumentList "-m", "uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8000" -WorkingDirectory $baseDir -WindowStyle Minimized
 
 
 
@@ -32,7 +41,7 @@ Start-Process -FilePath "cmd.exe" -ArgumentList "/c", "npm", "run", "dev", "--",
 
 Write-Host "[3/3] 启动注册服务器..." -ForegroundColor Yellow
 
-Start-Process -FilePath "cmd.exe" -ArgumentList "/c", "python", "registry_server.py" -WorkingDirectory $baseDir -WindowStyle Minimized
+Start-Process -FilePath $pythonExe -ArgumentList "registry_server.py" -WorkingDirectory $baseDir -WindowStyle Minimized
 
 
 

@@ -17,6 +17,8 @@ OFFICIAL_TEMPLATE_SLUGS = {
 }
 
 AGENT_SKILLS_DIR = ".agents/skills"
+AGENT_DIR_NAME = ".agents"
+SKILLS_DIR_NAME = "skills"
 
 
 def _load_workflow(workflow_json: Any) -> dict:
@@ -126,7 +128,7 @@ def build_skill_package(title: str, description: str, workflow_json: Any, templa
     final_title = _text(title or meta.get("template_name") or meta.get("title"), "Ai Multi Agent 工作流 Skill")
     final_description = _text(
         description or meta.get("template_description") or meta.get("description") or meta.get("demo_scene"),
-        "用于在 Trae 中复用 Ai Multi Agent 工作流模板的项目级 Skill。",
+        "用于在 Trec/SOLO 中复用 Ai Multi Agent 工作流模板的项目级 Skill。",
     )
     skill_name = _slugify(final_title, template_id or _text(meta.get("template_id")))
     nodes = _ordered_nodes(workflow)
@@ -168,13 +170,13 @@ def build_skill_package(title: str, description: str, workflow_json: Any, templa
         "",
         f"# {final_title}",
         "",
-        "这是由 Ai Multi Agent Workflow Template 一键导出的 Trae 项目级 Skill。它用于把比赛演示中的多 Agent 工作流固化为 Trae 可复用的执行流程。",
+        "这是由 Ai Multi Agent Workflow Template 一键导出的 Trec/SOLO 项目级 Skill。它用于把比赛演示中的多 Agent 工作流固化为 Trec/SOLO 可复用的执行流程。",
         "",
         "## 适用场景",
         _text(meta.get("demo_scene"), final_description),
         "",
         "## 推荐触发方式",
-        f"- 在 Trae 中提出类似需求：`{recommended_prompt}`",
+        f"- 在 Trec/SOLO 中提出类似需求：`{recommended_prompt}`",
         "- 当任务需要按固定多 Agent 流程完成时，优先使用本 Skill。",
         "",
         "## 工作流策略",
@@ -227,12 +229,22 @@ def build_skill_zip(package: dict) -> bytes:
     return buffer.getvalue()
 
 
-def save_skill_to_workspace(package: dict, workspace: str) -> dict:
+def _resolve_skill_project_root(workspace: str) -> Path:
     if not workspace:
         raise ValueError("workspace is required")
 
     workspace_path = Path(workspace).expanduser().resolve()
-    target_dir = workspace_path / ".agents" / "skills" / package["skill_dir"]
+    if workspace_path.name == SKILLS_DIR_NAME and workspace_path.parent.name == AGENT_DIR_NAME:
+        return workspace_path.parent.parent
+    if workspace_path.name == AGENT_DIR_NAME:
+        return workspace_path.parent
+    return workspace_path
+
+
+def save_skill_to_workspace(package: dict, workspace: str) -> dict:
+    project_root = _resolve_skill_project_root(workspace)
+    skill_root = project_root / AGENT_DIR_NAME / SKILLS_DIR_NAME
+    target_dir = skill_root / package["skill_dir"]
     target_dir.mkdir(parents=True, exist_ok=True)
 
     skill_path = target_dir / "SKILL.md"
@@ -242,6 +254,9 @@ def save_skill_to_workspace(package: dict, workspace: str) -> dict:
 
     return {
         "skill_name": package["skill_name"],
+        "project_root": os.fspath(project_root),
+        "skill_root": os.fspath(skill_root),
+        "skill_path": os.fspath(skill_path),
         "target_dir": os.fspath(target_dir),
         "files": [os.fspath(skill_path), os.fspath(workflow_path)],
     }

@@ -1,19 +1,30 @@
 # Ai Multi Agent Start Script (Optimized)
-# Uses uvicorn module call instead of server.py direct execution for faster startup
+# Uses project .venv when available, then falls back to system Python.
 
 $ErrorActionPreference = "SilentlyContinue"
 
+$projectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+$frontendDir = Join-Path $projectRoot "frontend"
+$venvPython = Join-Path $projectRoot ".venv\Scripts\python.exe"
+
+if (Test-Path $venvPython) {
+    $pythonExe = $venvPython
+} else {
+    $pythonExe = "python"
+    Write-Output "Project .venv not found. Run 一键安装依赖.bat first, or ensure system Python has all dependencies."
+}
+
 # Start all services in parallel
-$server = Start-Process python -ArgumentList "-m uvicorn server:app --host 0.0.0.0 --port 8000" -WorkingDirectory "g:\Ai Multi Agent" -PassThru -WindowStyle Hidden
-$frontend = Start-Process cmd -ArgumentList "/c cd /d g:\Ai Multi Agent\frontend && npm run dev -- --host 127.0.0.1" -PassThru -WindowStyle Hidden
-$registry = Start-Process python -ArgumentList "registry_server.py" -WorkingDirectory "g:\Ai Multi Agent" -PassThru -WindowStyle Hidden
+$server = Start-Process -FilePath $pythonExe -ArgumentList "-m", "uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8000" -WorkingDirectory $projectRoot -PassThru -WindowStyle Hidden
+$frontend = Start-Process -FilePath "cmd" -ArgumentList "/c", "npm", "run", "dev", "--", "--host", "127.0.0.1" -WorkingDirectory $frontendDir -PassThru -WindowStyle Hidden
+$registry = Start-Process -FilePath $pythonExe -ArgumentList "registry_server.py" -WorkingDirectory $projectRoot -PassThru -WindowStyle Hidden
 
 $pids = @{
     server_pid = $server.Id
     frontend_pid = $frontend.Id
     registry_pid = $registry.Id
 }
-$pids | ConvertTo-Json | Set-Content -Path "g:\Ai Multi Agent\skyt_pids.json"
+$pids | ConvertTo-Json | Set-Content -Path (Join-Path $projectRoot "skyt_pids.json")
 Write-Output "Ai Multi Agent started with PIDs: $($server.Id), $($frontend.Id), $($registry.Id)"
 
 # Wait for backend (usually ready in 2-3s now with lazy loading)
