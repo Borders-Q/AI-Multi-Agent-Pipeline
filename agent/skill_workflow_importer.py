@@ -150,7 +150,7 @@ def _workflow_from_markdown(markdown: str, title: str, description: str, source_
             "custom_agent",
             160 + index * 300,
             120,
-            role="Trae Skill 流程节点",
+            role="Trec/SOLO Skill 流程节点",
             description=f"从 {source_name} 的 SKILL.md 解析得到的执行步骤。",
             instruction=f"严格按导入 Skill 的步骤完成：{step}",
             stage="custom",
@@ -168,7 +168,7 @@ def _workflow_from_markdown(markdown: str, title: str, description: str, source_
         "meta": {
             "template_name": title,
             "description": description,
-            "demo_scene": "从 Trae Skill 导入并恢复为 Ai Multi Agent 工作流模板。",
+            "demo_scene": "从 Trec/SOLO Skill 导入并恢复为 Ai Multi Agent 工作流模板。",
             "recommended_user_prompt": "按导入的 Skill 流程执行本次任务。",
             "expected_outputs": ["恢复后的工作流模板", "可编辑节点", "可运行回放记录"],
             "imported_from": "trae_skill_markdown",
@@ -208,7 +208,7 @@ def import_trae_skill_to_template(file_name: str, content: bytes, template_id: s
             if skill_name:
                 skill_md = _decode_text(zf.read(skill_name))
             if not workflow_json_text and not skill_md:
-                raise ValueError("Trae Skill zip 中未找到 workflow.json 或 SKILL.md")
+                raise ValueError("Trec/SOLO Skill zip 中未找到 workflow.json 或 SKILL.md")
     else:
         raw_text = _decode_text(content)
         if source_name.lower().endswith(".json") or raw_text.lstrip().startswith("{"):
@@ -218,7 +218,7 @@ def import_trae_skill_to_template(file_name: str, content: bytes, template_id: s
 
     frontmatter = _parse_frontmatter(skill_md)
     raw_title = title_override or frontmatter.get("name") or ""
-    raw_desc = frontmatter.get("description") or "从 Trae Skill 导入的工作流模板"
+    raw_desc = frontmatter.get("description") or "从 Trec/SOLO Skill 导入的工作流模板"
 
     if workflow_json_text:
         try:
@@ -226,11 +226,11 @@ def import_trae_skill_to_template(file_name: str, content: bytes, template_id: s
         except json.JSONDecodeError as exc:
             raise ValueError(f"workflow.json 不是有效 JSON: {exc}") from exc
         meta = workflow.get("meta") or {}
-        title = raw_title or _text(meta.get("template_name") or meta.get("title"), "Imported Trae Skill Workflow")
-        description = raw_desc or _text(meta.get("description"), "从 Trae Skill workflow.json 导入")
+        title = raw_title or _text(meta.get("template_name") or meta.get("title"), "Imported Trec/SOLO Skill Workflow")
+        description = raw_desc or _text(meta.get("description"), "从 Trec/SOLO Skill workflow.json 导入")
         workflow = _ensure_workflow_meta(workflow, title, description, source_name)
     else:
-        title = raw_title or "Imported Trae Skill Workflow"
+        title = raw_title or "Imported Trec/SOLO Skill Workflow"
         description = raw_desc
         workflow, md_warnings = _workflow_from_markdown(skill_md, title, description, source_name)
         warnings.extend(md_warnings)

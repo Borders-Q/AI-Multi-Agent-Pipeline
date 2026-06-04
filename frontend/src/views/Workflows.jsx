@@ -280,7 +280,7 @@ export default function Workflows({ sessionId = 'default', onRunWorkflowTemplate
 
   const handleImportTraeSkill = async () => {
     if (!importFile) {
-      setNotice('请先选择 Trae Skill zip、SKILL.md 或 workflow.json 文件。');
+      setNotice('请先选择 Trec/SOLO Skill zip、SKILL.md 或 workflow.json 文件。');
       return;
     }
     setImporting(true);
@@ -299,11 +299,11 @@ export default function Workflows({ sessionId = 'default', onRunWorkflowTemplate
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
       await loadTemplates();
-      setNotice(`Trae Skill 已导入为工作流模板：${data.template_id}${data.warnings?.length ? `；提示：${data.warnings.join('；')}` : ''}`);
+      setNotice(`Trec/SOLO Skill 已导入为工作流模板：${data.template_id}${data.warnings?.length ? `；提示：${data.warnings.join('；')}` : ''}`);
       setImportDialogOpen(false);
       setImportFile(null);
     } catch (e) {
-      setNotice(`导入 Trae Skill 失败：${e.message}`);
+      setNotice(`导入 Trec/SOLO Skill 失败：${e.message}`);
     } finally {
       setImporting(false);
     }
@@ -361,15 +361,15 @@ export default function Workflows({ sessionId = 'default', onRunWorkflowTemplate
         }
         const blob = await res.blob();
         downloadBlob(blob, filenameFromDisposition(res, `${selectedTemplate.template_id || 'workflow-skill'}.zip`));
-        setNotice('Trae Skill 包已生成并开始下载。');
+        setNotice('Trec/SOLO Skill 包已生成并开始下载。');
       } else {
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
-        setNotice(`Trae Skill 已保存到：${data.target_dir}`);
+        setNotice(`Trec/SOLO Skill 已保存到：${data.target_dir}`);
       }
       setExportDialogOpen(false);
     } catch (e) {
-      setNotice(`导出 Trae Skill 失败：${e.message}`);
+      setNotice(`导出 Trec/SOLO Skill 失败：${e.message}`);
     } finally {
       setExporting(false);
     }
@@ -570,7 +570,7 @@ export default function Workflows({ sessionId = 'default', onRunWorkflowTemplate
                   sx={{ py: 1.4, fontWeight: 'bold' }}
                   onClick={() => setExportDialogOpen(true)}
                 >
-                  导出 Trae Skill
+                  导出 Trec/SOLO Skill
                 </Button>
                 <Button
                   variant="outlined"
@@ -603,10 +603,10 @@ export default function Workflows({ sessionId = 'default', onRunWorkflowTemplate
           },
         }}
       >
-        <DialogTitle>导出为 Trae Skill</DialogTitle>
+        <DialogTitle>导出为 Trec/SOLO Skill</DialogTitle>
         <DialogContent sx={{ display: 'grid', gap: 1.5, pt: 1, color: 'var(--sys-color-on-surface)' }}>
           <Typography variant="body2" sx={{ color: 'var(--sys-color-on-surface-variant)' }}>
-            将当前工作流模板转换为 Trae 可识别的项目级 Skill，结构为 <code>.trae/skills/&lt;skill-name&gt;/SKILL.md</code>。
+            将当前工作流模板转换为 Trec/SOLO 可识别的项目级 Skill，结构为 <code>.agents/skills/&lt;skill-name&gt;/SKILL.md</code>。
           </Typography>
           <Typography variant="body2">
             当前模板：{selectedTemplate?.title || '未选择模板'}
@@ -643,7 +643,7 @@ export default function Workflows({ sessionId = 'default', onRunWorkflowTemplate
         <DialogContent sx={{ display: 'grid', gap: 2, pt: 1, color: 'var(--sys-color-on-surface)' }}>
           <Box sx={{ display: 'flex', gap: 1 }}>
             <Button variant={importMode === 'trae' ? 'contained' : 'outlined'} onClick={() => setImportMode('trae')}>
-              Trae Skill 包
+              Trec/SOLO Skill 包
             </Button>
             <Button variant={importMode === 'system' ? 'contained' : 'outlined'} onClick={() => setImportMode('system')}>
               系统技能

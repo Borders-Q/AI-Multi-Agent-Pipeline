@@ -139,9 +139,9 @@ export default function Toolbar() {
       }
       const blob = await res.blob();
       downloadBlob(blob, filenameFromDisposition(res, `${templateId || 'current-workflow-skill'}.zip`));
-      showToast('Trae Skill 包已生成并开始下载。');
+      showToast('Trec/SOLO Skill 包已生成并开始下载。');
     } catch (e) {
-      showToast(`导出 Trae Skill 失败：${e.message}`, 'error');
+      showToast(`导出 Trec/SOLO Skill 失败：${e.message}`, 'error');
     } finally {
       setExportingSkill(false);
     }

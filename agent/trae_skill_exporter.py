@@ -16,6 +16,8 @@ OFFICIAL_TEMPLATE_SLUGS = {
     "tmpl_competition_gpu_api_pipeline": "gpu-api-collaboration",
 }
 
+AGENT_SKILLS_DIR = ".agents/skills"
+
 
 def _load_workflow(workflow_json: Any) -> dict:
     if isinstance(workflow_json, str):
@@ -220,8 +222,8 @@ def build_skill_zip(package: dict) -> bytes:
     buffer = io.BytesIO()
     skill_dir = package["skill_dir"]
     with zipfile.ZipFile(buffer, "w", compression=zipfile.ZIP_DEFLATED) as zf:
-        zf.writestr(f"{skill_dir}/SKILL.md", package["skill_md"])
-        zf.writestr(f"{skill_dir}/workflow.json", package["workflow_json"])
+        zf.writestr(f"{AGENT_SKILLS_DIR}/{skill_dir}/SKILL.md", package["skill_md"])
+        zf.writestr(f"{AGENT_SKILLS_DIR}/{skill_dir}/workflow.json", package["workflow_json"])
     return buffer.getvalue()
 
 
@@ -230,7 +232,7 @@ def save_skill_to_workspace(package: dict, workspace: str) -> dict:
         raise ValueError("workspace is required")
 
     workspace_path = Path(workspace).expanduser().resolve()
-    target_dir = workspace_path / ".trae" / "skills" / package["skill_dir"]
+    target_dir = workspace_path / ".agents" / "skills" / package["skill_dir"]
     target_dir.mkdir(parents=True, exist_ok=True)
 
     skill_path = target_dir / "SKILL.md"

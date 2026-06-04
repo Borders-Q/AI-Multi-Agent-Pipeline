@@ -1,20 +1,20 @@
 # Skill 与工作流模板双向转换说明
 
-本文档面向后续维护和比赛演示，说明 Ai Multi Agent 如何完成“工作流模板 -> Trae Skill -> 工作流模板”的闭环，以及系统技能大厅中的 Skill 如何转换为可编辑、可运行、可回放的 Workflow Template。
+本文档面向后续维护和比赛演示，说明 Ai Multi Agent 如何完成“工作流模板 -> Trec/SOLO Skill -> 工作流模板”的闭环，以及系统技能大厅中的 Skill 如何转换为可编辑、可运行、可回放的 Workflow Template。
 
 ## 目标
 
 本功能不是把 Trae 或 Skills Store 重新实现一遍，而是让比赛演示可以清楚展示：
 
-- 工作流模板可以导出为 Trae 项目级 Skill；
+- 工作流模板可以导出为 Trec/SOLO 项目级 Skill；
 - 导出的 Skill 可以再次导入 Ai Multi Agent，恢复成工作流模板；
 - 系统技能大厅中的工具能力可以一键转换成三段式工作流模板；
 - 转换后的模板可以继续进入 Workflow Editor、运行历史、深度回放和报告中心。
 
 ## 核心文件
 
-- `agent/trae_skill_exporter.py`：把 Workflow Template / 当前编辑器工作流导出成 Trae Skill 包。
-- `agent/skill_workflow_importer.py`：解析 Trae Skill zip、`SKILL.md`、`workflow.json`，并生成标准 `workflow_json`。
+- `agent/trae_skill_exporter.py`：把 Workflow Template / 当前编辑器工作流导出成 Trec/SOLO Skill 包。
+- `agent/skill_workflow_importer.py`：解析 Trec/SOLO Skill zip、`SKILL.md`、`workflow.json`，并生成标准 `workflow_json`。
 - `server.py`：提供导入、导出、系统技能转模板 API。
 - `frontend/src/views/Workflows.jsx`：Workflow Templates 页面中的“导入 Skill 为模板”入口。
 - `frontend/src/views/SkillsStore.jsx`：技能大厅中每个系统技能的“转为工作流模板”入口。
@@ -22,11 +22,11 @@
 
 ## API
 
-### 导出模板为 Trae Skill
+### 导出模板为 Trec/SOLO Skill
 
 `POST /api/workflows/templates/{template_id}/export-trae-skill`
 
-用途：把已保存模板导出为 Trae Skill。
+用途：把已保存模板导出为 Trec/SOLO Skill。
 
 请求体：
 
@@ -37,9 +37,9 @@
 }
 ```
 
-`mode=download` 返回 zip；`mode=workspace` 保存到 `<workspace>/.trae/skills/<skill-name>/`。
+`mode=download` 返回 zip；`mode=workspace` 保存到 `<workspace>/.agents/skills/<skill-name>/`。
 
-### 导出当前编辑器工作流为 Trae Skill
+### 导出当前编辑器工作流为 Trec/SOLO Skill
 
 `POST /api/workflows/export-trae-skill`
 
@@ -47,7 +47,7 @@
 
 请求体包含 `title`、`description`、`workflow_json`、`mode`、`workspace`。
 
-### 导入 Trae Skill 为模板
+### 导入 Trec/SOLO Skill 为模板
 
 `POST /api/workflows/import-trae-skill-template`
 
@@ -84,13 +84,13 @@
 2. Skill 工具调用 Agent：只围绕目标系统技能调用工具。
 3. 结果总结 Agent：把工具输出整理成中文交付内容。
 
-## 导出的 Trae Skill 结构
+## 导出的 Trec/SOLO Skill 结构
 
 工作区保存模式会生成：
 
 ```text
 <workspace>/
-  .trae/
+  .agents/
     skills/
       <skill-name>/
         SKILL.md
@@ -112,7 +112,7 @@
 
 导入模板会保存到 `workflow_templates` 表，`stage` 为 `Imported`，`author` 为 `Ai Multi Agent User`。
 
-导入自 Trae Skill 的模板会带有：
+导入自 Trec/SOLO Skill 的模板会带有：
 
 - `meta.imported_from`；
 - `meta.source_file`；
@@ -132,7 +132,7 @@
 推荐演示顺序：
 
 1. 打开 Workflow Templates，选择一个官方比赛模板。
-2. 点击“导出 Trae Skill”，下载 zip 或保存到工作区。
+2. 点击“导出 Trec/SOLO Skill”，下载 zip 或保存到工作区。
 3. 再点击“导入 Skill 为模板”，上传刚才的 zip。
 4. 模板列表出现导入模板，打开编辑器，说明节点、边和元信息被恢复。
 5. 打开 Skills Store，选择 `web_search` 或 `write_file`，点击“转为工作流模板”。
@@ -143,13 +143,13 @@
 ## 不要随意改动的边界
 
 - 不要在导入 Skill 时执行任何上传代码。
-- 不要把 Trae Skill 的所有语义强行映射成 Ai Multi Agent 内部 Agent；无法识别时保持兜底节点和 warnings。
+- 不要把 Trec/SOLO Skill 的所有语义强行映射成 Ai Multi Agent 内部 Agent；无法识别时保持兜底节点和 warnings。
 - 不要覆盖用户已有模板；导入模板使用新的 `template_id`。
-- 不要把 `.env`、数据库、运行缓存、日志打包进 Trae Skill。
+- 不要把 `.env`、数据库、运行缓存、日志打包进 Trec/SOLO Skill。
 
 ## 后续可扩展点
 
 - 增加导入预览，在保存前展示解析出的节点和 warnings。
 - 支持把 `SKILL.md` 中更明确的“输入/输出/风险”段落映射到节点字段。
 - 增加模板冲突处理，例如同名模板提示覆盖、另存或取消。
-- 支持批量导入多个 Trae Skill。
+- 支持批量导入多个 Trec/SOLO Skill。
