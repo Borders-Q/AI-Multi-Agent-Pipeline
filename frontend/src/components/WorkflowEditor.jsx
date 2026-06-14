@@ -26,12 +26,12 @@ const ALL_AGENTS = [
   { key: "human_approval", name: "Human Approval", role: "人工确认节点", description: "暂停工作流等待用户批准。", stage: "approval", enabled: true, color: '#a78bfa' },
   { key: "custom_agent", name: "Custom Agent", role: "自定义模板智能体", description: "仅保存到Workflow的可视化节点。", stage: "custom", enabled: true, color: '#94a3b8' },
   
-  // Custom Ai Multi Agent agents
+  // Custom 天韬（SkyT） agents
   { key: "ProductAgent", name: "产品经理节点", role: "需求分析专家", description: "负责需求分析和拆解", stage: "analysis", enabled: true, color: '#ffb347' },
   { key: "CoderAgent", name: "程序员节点", role: "编码执行者", description: "负责编写代码", stage: "implementation", enabled: true, color: '#00ff9d' },
   { key: "TesterAgent", name: "测试员节点", role: "质量门禁", description: "负责测试代码", stage: "testing", enabled: true, color: '#ff6b6b' },
   { key: "WebSearch", name: "搜索节点", role: "外部资料聚合", description: "负责全网搜索资料", stage: "execution", enabled: true, color: '#4facfe' },
-  { key: "AiMultiAgentCore", name: "Ai Multi Agent 深思", role: "反思博弈引擎", description: "深度反思与博弈", stage: "analysis", enabled: true, color: '#b142ff' }
+  { key: "AiMultiAgentCore", name: "天韬（SkyT） 深思", role: "反思博弈引擎", description: "深度反思与博弈", stage: "analysis", enabled: true, color: '#b142ff' }
 ];
 
 const STAGE_OPTIONS = [

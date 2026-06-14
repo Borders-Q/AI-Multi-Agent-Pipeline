@@ -8,7 +8,7 @@ templates = [
         "description": "极速直接回答，跳过反思和校验，适合简单问题。",
         "stage": "Published",
         "tags": "Official,Fast",
-        "author": "Ai Multi Agent System",
+        "author": "天韬（SkyT） System",
         "workflow_json": json.dumps({
             "nodes": [
                 {
@@ -41,7 +41,7 @@ templates = [
         "description": "最严苛的业界顶尖视角审查自身代码或方案，确保性能和扩展性没有死角，多轮深度自反思循环。",
         "stage": "Published",
         "tags": "Official,Expert,Rigorous",
-        "author": "Ai Multi Agent System",
+        "author": "天韬（SkyT） System",
         "workflow_json": json.dumps({
             "nodes": [
                 {
@@ -94,7 +94,7 @@ templates = [
         "description": "突破常规逻辑束缚，使用多角度思维和图表输出，给出更具创意的替代方案。",
         "stage": "Published",
         "tags": "Official,Creative",
-        "author": "Ai Multi Agent System",
+        "author": "天韬（SkyT） System",
         "workflow_json": json.dumps({
             "nodes": [
                 {

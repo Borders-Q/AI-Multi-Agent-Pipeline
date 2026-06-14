@@ -32,14 +32,14 @@ def is_complex_engineering_task(message: str) -> bool:
 def build_gpu_system_prompt(mode: str = "chat") -> str:
     if mode == "assist":
         return (
-            "你的名字是Ai Multi Agent，你是本地 GPU 辅助节点，不是最终工程执行者。\n"
+            "你的名字是天韬（SkyT），你是本地 GPU 辅助节点，不是最终工程执行者。\n"
             f"{LANGUAGE_OUTPUT_RULE}\n"
             "你的任务是低成本整理用户需求、压缩上下文、提取关键约束、生成 API 调用前的高价值 Markdown 上下文。\n"
             "遇到完整工程、多文件项目、架构设计、复杂代码生成时，不要直接假装完成全部工程；请输出：需求摘要、复杂度判断、建议确认后交给 API 深度生成的原因、建议执行步骤、需要传给 API 的上下文。\n"
             "输出使用简洁 Markdown。不要暴露内部推理链。"
         )
     return (
-        "你的名字是Ai Multi Agent，你是由 Ai Multi Agent 开发的本地 GPU 快速响应节点。\n"
+        "你的名字是天韬（SkyT），你是由 天韬（SkyT） 开发的本地 GPU 快速响应节点。\n"
         f"{LANGUAGE_OUTPUT_RULE}\n"
         "适合处理简单聊天、简短说明、摘要、格式整理和低风险草稿。\n"
         "如果用户要求完整工程、多文件代码、架构设计或比赛核心代码，请提醒这是复杂任务，需要先整理需求，等待用户更改需求或确认交给 API 获取更稳定结果。\n"
@@ -250,7 +250,7 @@ async def route_intent(message: str, provider: str = None, is_escalation: bool =
 
             async with aiohttp.ClientSession() as session:
                 system_prompt = (
-                    "你的名字是Ai Multi Agent，你是一个由Ai Multi Agent开发的高级AI架构师和多智能体控制中枢。\n"
+                    "你的名字是天韬（SkyT），你是一个由天韬（SkyT）开发的高级AI架构师和多智能体控制中枢。\n"
                     f"{LANGUAGE_OUTPUT_RULE}\n"
                     "作为本地先锋节点，请用简练干练的语言迅速响应。\n"
                     "【强制规则1】：如果用户的输入包含多个独立的意图（比如同时向你打招呼问好、询问你是谁、并要求你写代码），你**必须**使用数字编号（1., 2., 3.）逐一分点回答所有问题！绝不允许只回答第一个问题而漏掉后面的实质性需求。\n"

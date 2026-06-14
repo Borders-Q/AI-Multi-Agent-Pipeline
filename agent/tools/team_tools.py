@@ -28,12 +28,12 @@ def get_team_tools():
         }
     ]
 
-def handle_send_message(to_name: str, content: str, from_name="Ai Multi Agent"):
+def handle_send_message(to_name: str, content: str, from_name="天韬（SkyT）"):
     from agent.team import team_manager
     team_manager.send_message(to_name, from_name, content)
     return f"Message sent to {to_name}."
 
-def handle_read_inbox(name="Ai Multi Agent"):
+def handle_read_inbox(name="天韬（SkyT）"):
     from agent.team import team_manager
     msgs = team_manager.read_messages(name)
     if not msgs:

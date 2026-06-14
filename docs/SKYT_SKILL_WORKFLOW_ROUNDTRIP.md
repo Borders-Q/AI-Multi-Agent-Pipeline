@@ -1,13 +1,13 @@
 # Skill 与工作流模板双向转换说明
 
-本文档面向后续维护和比赛演示，说明 Ai Multi Agent 如何完成“工作流模板 -> Trec/SOLO Skill -> 工作流模板”的闭环，以及系统技能大厅中的 Skill 如何转换为可编辑、可运行、可回放的 Workflow Template。
+本文档面向后续维护和比赛演示，说明 天韬（SkyT） 如何完成“工作流模板 -> Trec/SOLO Skill -> 工作流模板”的闭环，以及系统技能大厅中的 Skill 如何转换为可编辑、可运行、可回放的 Workflow Template。
 
 ## 目标
 
 本功能不是把 Trec/SOLO 或 Skills Store 重新实现一遍，而是让比赛演示可以清楚展示：
 
 - 工作流模板可以导出为 Trec/SOLO 项目级 Skill；
-- 导出的 Skill 可以再次导入 Ai Multi Agent，恢复成工作流模板；
+- 导出的 Skill 可以再次导入 天韬（SkyT），恢复成工作流模板；
 - 系统技能大厅中的工具能力可以一键转换成三段式工作流模板；
 - 转换后的模板可以继续进入 Workflow Editor、运行历史、深度回放和报告中心。
 
@@ -110,7 +110,7 @@
 
 ## 导入后的模板约定
 
-导入模板会保存到 `workflow_templates` 表，`stage` 为 `Imported`，`author` 为 `Ai Multi Agent User`。
+导入模板会保存到 `workflow_templates` 表，`stage` 为 `Imported`，`author` 为 `天韬（SkyT） User`。
 
 导入自 Trec/SOLO Skill 的模板会带有：
 
@@ -143,7 +143,7 @@
 ## 不要随意改动的边界
 
 - 不要在导入 Skill 时执行任何上传代码。
-- 不要把 Trec/SOLO Skill 的所有语义强行映射成 Ai Multi Agent 内部 Agent；无法识别时保持兜底节点和 warnings。
+- 不要把 Trec/SOLO Skill 的所有语义强行映射成 天韬（SkyT） 内部 Agent；无法识别时保持兜底节点和 warnings。
 - 不要覆盖用户已有模板；导入模板使用新的 `template_id`。
 - 不要把 `.env`、数据库、运行缓存、日志打包进 Trec/SOLO Skill。
 

@@ -38,7 +38,7 @@ def check_and_kill_port(port: int) -> str:
     except psutil.NoSuchProcess:
         return f"尝试终止端口 {port} 对应的进程时失败，进程可能已经退出。"
     except psutil.AccessDenied:
-        return f"[权限不足] 端口 {port} 被占用，但 Ai Multi Agent 缺乏管理员权限(Administrator) 强制终止该进程。"
+        return f"[权限不足] 端口 {port} 被占用，但 天韬（SkyT） 缺乏管理员权限(Administrator) 强制终止该进程。"
     except Exception as e:
         return f"[执行错误] 管理端口 {port} 时发生异常: {str(e)}"
 
@@ -106,7 +106,7 @@ def check_weather_local(gps_location: dict = None) -> str:
             # 尝试通过反向地理编码获取中文地名
             try:
                 rev_url = f"https://nominatim.openstreetmap.org/reverse?format=json&lat={gps_location['lat']}&lon={gps_location['lon']}&accept-language=zh-CN"
-                req_rev = urllib.request.Request(rev_url, headers={'User-Agent': 'Ai Multi Agent-Agent/1.0'})
+                req_rev = urllib.request.Request(rev_url, headers={'User-Agent': 'SkyT-Agent/1.0'})
                 opener_rev = urllib.request.build_opener(urllib.request.ProxyHandler({}))
                 with opener_rev.open(req_rev, timeout=3) as resp_rev:
                     addr = json.loads(resp_rev.read().decode('utf-8')).get('address', {})

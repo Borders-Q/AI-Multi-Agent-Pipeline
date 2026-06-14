@@ -133,7 +133,7 @@ class ErrorBoundary extends React.Component {
 }
 
 function App() {
-  const [messages, setMessages] = useState([{ role: 'agent', content: '欢迎使用 Ai Multi Agent 智能控制台。系统已就绪，请输入您的需求？' }]);
+  const [messages, setMessages] = useState([{ role: 'agent', content: '欢迎使用 天韬（SkyT） 智能控制台。系统已就绪，请输入您的需求？' }]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
@@ -299,7 +299,7 @@ SCHEMA = {
         method: 'POST'
       });
       if (res.ok) {
-        setMessages([{ role: 'agent', content: '欢迎使用 Ai Multi Agent 智能控制台。系统已就绪，请输入您的需求？' }]);
+        setMessages([{ role: 'agent', content: '欢迎使用 天韬（SkyT） 智能控制台。系统已就绪，请输入您的需求？' }]);
         setTodos([]);
         setActionLogs([]);
         setActiveWorkflow([]);
@@ -319,11 +319,11 @@ SCHEMA = {
         const data = await res.json();
         if (data.history && data.history.length > 0) {
           setMessages([
-            { role: 'agent', content: '欢迎使用 Ai Multi Agent 智能控制台。系统已就绪，请输入您的需求？' },
+            { role: 'agent', content: '欢迎使用 天韬（SkyT） 智能控制台。系统已就绪，请输入您的需求？' },
             ...data.history
           ]);
         } else {
-          setMessages([{ role: 'agent', content: '欢迎使用 Ai Multi Agent 智能控制台。系统已就绪，请输入您的需求？'}]);
+          setMessages([{ role: 'agent', content: '欢迎使用 天韬（SkyT） 智能控制台。系统已就绪，请输入您的需求？'}]);
         }
         setTimeout(() => scrollToBottom('auto'), 100);
       }
@@ -376,7 +376,7 @@ SCHEMA = {
   const handleNewChat = () => {
     const newId = Date.now().toString();
     setSessionId(newId);
-    setMessages([{ role: 'agent', content: '欢迎使用 Ai Multi Agent 智能控制台。系统已就绪，请输入您的需求？'}]);
+    setMessages([{ role: 'agent', content: '欢迎使用 天韬（SkyT） 智能控制台。系统已就绪，请输入您的需求？'}]);
     setTodos([]);
     setActionLogs([]);
     setActiveWorkflow([]);
@@ -659,7 +659,7 @@ SCHEMA = {
       <div className="app-container" style={{ alignItems: 'center', justifyContent: 'center' }}>
         <div className="card glass animate-fade-in" style={{ width: '100%', maxWidth: '480px', textAlign: 'center', padding: '40px' }}>
           <Sparkles size={48} color="var(--sys-color-primary)" style={{ marginBottom: '24px' }} />
-          <h1 style={{ marginBottom: '8px' }}>Ai Multi Agent</h1>
+          <h1 style={{ marginBottom: '8px' }}>天韬（SkyT）</h1>
           <p style={{ marginBottom: '32px', color: 'var(--sys-color-on-surface-variant)' }}>高度自治的多智能体指挥控制台。</p>
 
           <button className="btn-primary" onClick={() => setEnteredSystem(true)} style={{ width: '100%', padding: '12px' }}>进入系统</button>
@@ -679,7 +679,7 @@ SCHEMA = {
                 <Sparkles size={20} color="var(--sys-color-on-primary-container)" />
               </div>
               <div style={{ display: isSidebarOpen ? 'block' : 'none', opacity: isSidebarOpen ? 1 : 0, transition: 'opacity 0.2s' }}>
-                <h2 style={{ fontSize: '1.25rem', margin: 0 }}>Ai Multi Agent</h2>
+                <h2 style={{ fontSize: '1.25rem', margin: 0 }}>天韬（SkyT）</h2>
                 <p style={{ margin: 0, fontSize: '0.85rem' }}><span className={`badge badge-${activeProvider || 'unknown'}`}>{activeProvider || '未配置模型'}</span></p>
               </div>
             </div>
@@ -909,7 +909,7 @@ SCHEMA = {
                             {messages.length === 0 ? (
                               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', opacity: 0.5 }}>
                                 <Bot size={64} style={{ marginBottom: '16px', color: 'var(--sys-color-primary)' }} />
-                                <h2>Ai Multi Agent 鏅鸿兘涓灑</h2>
+                                <h2>天韬（SkyT） 鏅鸿兘涓灑</h2>
                                 <p>请在下方输入指令。您可以通过侧边栏管理任务流、监控节点或配置云端模型。</p>
                               </div>
                             ) : (
@@ -919,7 +919,7 @@ SCHEMA = {
                                     <div key={idx} className={`message ${msg.role} animate-fade-in`} style={{ maxWidth: msg.role === 'agent' ? '90%' : '80%' }}>
                                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', fontSize: '0.8rem', opacity: 0.7 }}>
                                         {msg.role === 'user' ? <User size={14} /> : <Bot size={14} />}
-                                        {msg.role === 'user' ? '用户' : 'Ai Multi Agent 系统'}
+                                        {msg.role === 'user' ? '用户' : '天韬（SkyT） 系统'}
                                         {msg.role === 'agent' && msg.routed_by && (
                                           <span style={{
                                             backgroundColor: msg.routed_by === 'NPU' ? '#1a73e8' : (msg.routed_by?.includes('GPU') ? '#0f9d58' : '#673ab7'),
@@ -971,7 +971,7 @@ SCHEMA = {
                                   {isLoading && (
                                     <div className="message agent animate-fade-in" style={{ maxWidth: '90%' }}>
                                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', fontSize: '0.8rem', opacity: 0.7 }}>
-                                        <Bot size={14} /> Ai Multi Agent 系统
+                                        <Bot size={14} /> 天韬（SkyT） 系统
                                       </div>
 
                                       {actionLogs.length > 0 ? (

@@ -49,14 +49,14 @@ replacements = {
     1328: '              确定要清空当前会话的历史记录吗？此操作无法撤销。'
 }
 
-with codecs.open('g:/Ai Multi Agent/frontend/src/App.jsx', 'r', 'utf-8', errors='ignore') as f:
+with codecs.open('g:/AI Mu/frontend/src/App.jsx', 'r', 'utf-8', errors='ignore') as f:
     lines = f.readlines()
 
 for num, text in replacements.items():
     # Make sure we don't accidentally insert an extra newline if we overwrite
     lines[num-1] = text + '\n'
 
-with codecs.open('g:/Ai Multi Agent/frontend/src/App.jsx', 'w', 'utf-8') as f:
+with codecs.open('g:/AI Mu/frontend/src/App.jsx', 'w', 'utf-8') as f:
     f.writelines(lines)
     
 print('Fixed all missing quotes!')

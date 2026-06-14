@@ -1,6 +1,6 @@
-# Ai Multi Agent 项目入口
+# 天韬（SkyT） 项目入口
 
-Ai Multi Agent 是一个面向比赛展示和本地开发协作的 AI 工作台。当前主线不是重新做一个通用聊天网页，而是把“对话、工作区、执行日志、浏览器、PowerShell、工作流、报告和模型配置”组织成一个接近 Codex 使用体验的本地系统。
+天韬（SkyT） 是一个面向比赛展示和本地开发协作的 AI 工作台。当前主线不是重新做一个通用聊天网页，而是把“对话、工作区、执行日志、浏览器、PowerShell、工作流、报告和模型配置”组织成一个接近 Codex 使用体验的本地系统。
 
 ## 快速启动
 
@@ -13,12 +13,12 @@ Ai Multi Agent 是一个面向比赛展示和本地开发协作的 AI 工作台�
 也可以分开启动：
 
 ```powershell
-cd E:\比赛\Ai Multi Agent
+cd E:\比赛\AI Mu
 python server.py
 ```
 
 ```powershell
-cd E:\比赛\Ai Multi Agent\frontend
+cd E:\比赛\AI Mu\frontend
 npm install
 npm run dev -- --host 127.0.0.1
 ```
@@ -46,11 +46,11 @@ React + Vite 工作台
 6. `docs/COMPETITION_VISUAL_GUIDE.md`
 7. `docs/GPU_API_COLLABORATION.md`
 
-`docs/XJB_TEST_REFERENCE_SUMMARY.md` 记录了对 `D:\xjb-test` 的只读参考总结。该项目只作为文档组织和架构表达方式参考，不作为 Ai Multi Agent 的代码来源。
+`docs/XJB_TEST_REFERENCE_SUMMARY.md` 记录了对 `D:\xjb-test` 的只读参考总结。该项目只作为文档组织和架构表达方式参考，不作为 天韬（SkyT） 的代码来源。
 
 ## 维护原则
 
-- 不要把 Ai Multi Agent 改造成 `D:\xjb-test` 的 Vue + Java + FastAPI 三层平台。
+- 不要把 天韬（SkyT） 改造成 `D:\xjb-test` 的 Vue + Java + FastAPI 三层平台。
 - 前端 UI 修改优先保持 Codex 风格工作台，不做营销落地页。
 - 后端接口改动前先看 `server.py`、`db.py`、`agent/workflow.py` 和 `agent/tools/fs_tools.py`。
 - 模型与 API Key 相关逻辑集中看 `frontend/src/App.jsx` 中的 `ModelManager` 和 `server.py` 中的 `/api/models/*`。

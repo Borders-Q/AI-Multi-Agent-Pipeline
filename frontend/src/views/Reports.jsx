@@ -46,7 +46,7 @@ export default function Reports() {
             报告中心 (Reports)
           </h1>
           <p style={{ color: '#a6adc8', margin: '8px 0 0', fontSize: '0.9rem' }}>
-            浏览由 Ai Multi Agent 自动分析生成的结构化深度报告。
+            浏览由 天韬（SkyT） 自动分析生成的结构化深度报告。
           </p>
         </div>
         

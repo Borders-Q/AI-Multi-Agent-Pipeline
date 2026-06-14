@@ -4,13 +4,13 @@
 
 
 
-$Host.UI.RawUI.WindowTitle = "Ai Multi Agent 系统 - 一键关闭"
+$Host.UI.RawUI.WindowTitle = "天韬（SkyT） 系统 - 一键关闭"
 
 
 
 Write-Host "==================================="
 
-Write-Host "       Ai Multi Agent 系统 - 一键关闭"
+Write-Host "       天韬（SkyT） 系统 - 一键关闭"
 
 Write-Host "==================================="
 
@@ -30,11 +30,11 @@ Stop-Process -Name "node" -Force -ErrorAction SilentlyContinue
 
 
 
-Write-Host "正在关闭 Ai Multi Agent 专属浏览器页面..." -ForegroundColor Yellow
+Write-Host "正在关闭 天韬（SkyT） 专属浏览器页面..." -ForegroundColor Yellow
 
-# 1. 安全且精确地关闭浏览器中的 Ai Multi Agent 窗口（绝不会关闭您的 IDE 或其他不相干窗口）
+# 1. 安全且精确地关闭浏览器中的 天韬（SkyT） 窗口（绝不会关闭您的 IDE 或其他不相干窗口）
 
-Get-Process msedge, chrome -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowTitle -like '*Ai Multi Agent*' } | ForEach-Object {
+Get-Process msedge, chrome -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowTitle -like '*天韬（SkyT）*' } | ForEach-Object {
 
     $_.CloseMainWindow() | Out-Null
 

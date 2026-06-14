@@ -1,6 +1,6 @@
-# Ai Multi Agent 文档索引
+# 天韬（SkyT） 文档索引
 
-本文是 `docs/` 的总入口。Ai Multi Agent 当前定位为比赛展示型 AI 工作台，核心是把对话、工作区、模型路由、执行日志、浏览器、PowerShell、工作流、运行记录和报告组织为一个可维护的本地系统。
+本文是 `docs/` 的总入口。天韬（SkyT） 当前定位为比赛展示型 AI 工作台，核心是把对话、工作区、模型路由、执行日志、浏览器、PowerShell、工作流、运行记录和报告组织为一个可维护的本地系统。
 
 ## 推荐阅读顺序
 
@@ -16,7 +16,7 @@
 | 8 | `GENERATION_HISTORY.md` | 已有生成过程和本次整理记录 |
 | 9 | `PROJECT_OPTIMIZATION_GUIDE.md` | 后续持续优化、UI 调整和 vibe coding 记录 |
 | 10 | `SKYT_FUTURE_OPTIMIZATION_ROADMAP.md` | Token 统计、执行过程可视化、本地 GPU + API 协作后续路线图 |
-| 11 | `SKYT_DATA_DISTILLATION.md` | Ai Multi Agent数据蒸馏、事件保留和压缩规则 |
+| 11 | `SKYT_DATA_DISTILLATION.md` | 天韬（SkyT）数据蒸馏、事件保留和压缩规则 |
 | 12 | `SKYT_GPU_API_WORKFLOW.md` | 本地 GPU 辅助 API 的分工和按钮流程 |
 | 13 | `SKYT_STREAMING_OUTPUT.md` | GPU/API/执行步骤流式输出链路 |
 | 14 | `SKYT_UI_OUTPUT_STRUCTURE.md` | 输入框、执行步骤、最终回答和 Token 的 UI 分层 |
@@ -39,7 +39,7 @@
 - `GPU_API_COLLABORATION.md`：本地 GPU + API 协作策略。
 - `PROJECT_OPTIMIZATION_GUIDE.md`：持续优化记录和后续维护建议。
 - `SKYT_FUTURE_OPTIMIZATION_ROADMAP.md`：Token、执行回放和 GPU/API 协作的后续优化路线。
-- `SKYT_DATA_DISTILLATION.md`：Ai Multi Agent数据蒸馏机制。
+- `SKYT_DATA_DISTILLATION.md`：天韬（SkyT）数据蒸馏机制。
 - `SKYT_GPU_API_WORKFLOW.md`：GPU 辅助 API 工作流。
 - `SKYT_STREAMING_OUTPUT.md`：流式输出链路。
 - `SKYT_UI_OUTPUT_STRUCTURE.md`：对话输出 UI 分层。

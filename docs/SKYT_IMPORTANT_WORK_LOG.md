@@ -1,4 +1,4 @@
-# Ai Multi Agent 历史重要工作记录
+# 天韬（SkyT） 历史重要工作记录
 
 本文记录本地 GPU 生成辅助 Markdown 和历史工作记录的机制。
 

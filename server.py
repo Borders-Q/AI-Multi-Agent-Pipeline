@@ -49,7 +49,7 @@ from agent.token_usage import (
 from agent.tools.native_aci import check_and_kill_port, get_system_resources, check_weather_local
 from agent.npu_classifier import npu_engine
 from agent.workflow import AgentWorkflowEngine
-from agent.markdown_archivist import generate_run_markdown
+from agent.markdown_archivist import generate_run_markdown, generate_session_markdown
 from agent.code_artifacts import extract_local_urls
 from agent.trae_skill_exporter import build_skill_package, build_skill_zip, save_skill_to_workspace
 from agent.skill_workflow_importer import import_trae_skill_to_template, tool_schema_to_workflow_template
@@ -59,7 +59,7 @@ import agent.tools.report_tools
 from agent.tools.fs_tools import ask_user_for_directory
 from agent.distillation_worker import distillation_loop
 
-app = FastAPI(title="Ai Multi Agent API")
+app = FastAPI(title="天韬（SkyT） API")
 
 @app.on_event("startup")
 async def startup_event():
@@ -108,7 +108,7 @@ async def startup_event():
     
     # Start NPU model compilation in background (non-blocking)
     npu_engine.warmup_async()
-    print("> [Ai Multi Agent] Server ready! NPU models warming up in background...")
+    print("> [天韬（SkyT）] Server ready! NPU models warming up in background...")
     
     # Start GPU idle memory distillation daemon
     asyncio.create_task(distillation_loop())
@@ -220,6 +220,7 @@ def get_skills():
 
     # We will import web_skills to ensure they are registered
 
+    _load_installed_market_skills()
 
 
     return {"skills": tool_manager.get_openai_tools()}
@@ -230,46 +231,128 @@ class DownloadSkillRequest(BaseModel):
 class ImportSkillRequest(BaseModel):
     code: str
 
+INSTALLED_MARKET_SKILLS_DIR = os.path.join(os.path.dirname(__file__), "agent", "installed_market_skills")
+_installed_market_skills_loaded = False
+
+def _safe_skill_filename(name: str) -> str:
+    safe = re.sub(r"[^a-zA-Z0-9_\\-]+", "_", name or "market_skill").strip("_")
+    return f"{safe or 'market_skill'}.py"
+
+def _register_skill_code(code_str: str, source: str = "skill"):
+    namespace = {}
+    exec(code_str, namespace)
+    schema = namespace.get("SCHEMA")
+    if not isinstance(schema, dict):
+        raise ValueError(f"{source} 缺少 SCHEMA 字典")
+    func_name = schema.get("name")
+    if not func_name or not re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", func_name):
+        raise ValueError(f"{source} 的 SCHEMA.name 无效")
+    func = namespace.get(func_name)
+    if not callable(func):
+        raise ValueError(f"{source} 中未找到函数 {func_name}")
+    parameters = schema.get("parameters") or {"type": "object", "properties": {}}
+    tool_manager.register_tool(
+        func,
+        name=func_name,
+        description=schema.get("description") or func.__doc__ or "Marketplace skill",
+        params_schema=parameters,
+    )
+    return schema
+
+def _schema_from_skill_code(code_str: str):
+    namespace = {}
+    exec(code_str, namespace)
+    schema = namespace.get("SCHEMA")
+    return schema if isinstance(schema, dict) else {}
+
+def _get_builtin_market_skills():
+    from agent.market_skills import MARKET_SKILLS
+    items = []
+    for key, item in MARKET_SKILLS.items():
+        code_str = item.get("code") or ""
+        try:
+            schema = _schema_from_skill_code(code_str)
+        except Exception:
+            schema = {}
+        function_name = schema.get("name") or item.get("function_name") or item.get("id") or key
+        items.append({
+            "id": item.get("id") or key,
+            "name": item.get("name") or key,
+            "description": item.get("description") or schema.get("description") or "",
+            "icon": item.get("icon") or "🧩",
+            "category": item.get("category") or "云端技能",
+            "function_name": function_name,
+            "source": "cloud_mirror",
+            "source_label": item.get("source_label") or "官方云端镜像",
+            "installed": function_name in tool_manager.tools,
+            "requires_network": bool(item.get("requires_network")),
+            "credential_required": bool(item.get("credential_required")),
+            "credential_note": item.get("credential_note") or "",
+        })
+    return items
+
+def _load_installed_market_skills():
+    global _installed_market_skills_loaded
+    if _installed_market_skills_loaded:
+        return
+    os.makedirs(INSTALLED_MARKET_SKILLS_DIR, exist_ok=True)
+    for file_name in os.listdir(INSTALLED_MARKET_SKILLS_DIR):
+        if not file_name.endswith(".py"):
+            continue
+        path = os.path.join(INSTALLED_MARKET_SKILLS_DIR, file_name)
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                _register_skill_code(f.read(), source=f"installed:{file_name}")
+        except Exception as e:
+            print(f"Failed to load installed market skill {file_name}: {e}")
+    _installed_market_skills_loaded = True
+
 @app.get("/api/skills/market")
 def get_market_skills():
 
     try:
-        url = "http://127.0.0.1:8001/catalog.json"
-        req = urllib.request.Request(url)
-        with urllib.request.urlopen(req, timeout=5) as response:
-            catalog = json.loads(response.read().decode())
-            return {"market_skills": catalog}
+        _load_installed_market_skills()
+        return {"market_skills": _get_builtin_market_skills(), "source": "cloud_mirror"}
     except Exception as e:
         print("Market fetching error:", e)
-        return {"market_skills": []}
+        raise HTTPException(status_code=500, detail=f"云端应用市场同步失败：{str(e)}")
 
 @app.post("/api/skills/download")
 def download_skill(req: DownloadSkillRequest):
-
-
-    
-    # Download code from mock remote registry
     try:
-        url = f"http://127.0.0.1:8001/skills/{req.skill_id}.py"
-        http_req = urllib.request.Request(url)
-        with urllib.request.urlopen(http_req, timeout=5) as response:
-            code_str = response.read().decode()
+        from agent.market_skills import MARKET_SKILLS
+        skill = None
+        for key, item in MARKET_SKILLS.items():
+            candidates = {str(key), str(item.get("id")), str(item.get("name"))}
+            if req.skill_id in candidates:
+                skill = item
+                break
+        if not skill:
+            raise HTTPException(status_code=404, detail=f"云端应用市场未找到技能：{req.skill_id}")
+        code_str = skill.get("code") or ""
+        if not code_str.strip():
+            raise HTTPException(status_code=400, detail=f"云端技能 {req.skill_id} 缺少可安装代码")
+        schema = _register_skill_code(code_str, source=f"market:{req.skill_id}")
+        os.makedirs(INSTALLED_MARKET_SKILLS_DIR, exist_ok=True)
+        saved_name = _safe_skill_filename(schema.get("name") or req.skill_id)
+        saved_path = os.path.join(INSTALLED_MARKET_SKILLS_DIR, saved_name)
+        with open(saved_path, "w", encoding="utf-8") as f:
+            f.write(code_str.strip() + "\n")
+        return {
+            "status": "success",
+            "message": f"已从云端拉取技能 {schema['name']}，现在可以在已安装技能中启用。",
+            "skill": {
+                "name": schema["name"],
+                "description": schema.get("description", ""),
+                "saved_path": saved_path,
+                "credential_required": bool(skill.get("credential_required")),
+                "credential_note": skill.get("credential_note") or "",
+            }
+        }
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=404, detail=f"Failed to download skill from registry: {str(e)}")
-        
-    # Dynamic execution
-    try:
-        namespace = {}
-        exec(code_str, namespace)
-        schema = namespace.get("SCHEMA")
-        func = namespace.get(schema["name"])
-        if func and schema:
-            tool_manager.register_tool(func, name=schema["name"], description=schema["description"], params_schema=schema["parameters"])
-            return {"status": "success", "message": f"Skill {schema['name']} installed"}
-        else:
-            raise Exception("Invalid skill code format: missing SCHEMA or function")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to install skill: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"云端拉取失败：{str(e)}")
 
 @app.post("/api/skills/import")
 def import_skill(req: ImportSkillRequest):
@@ -297,8 +380,8 @@ def get_history(session_id: str):
 
 @app.post("/api/history/clear/{session_id}")
 def clear_history(session_id: str):
-    db.clear_history(session_id)
-    return {"status": "success"}
+    result = db.clear_history(session_id)
+    return {"status": "success", **(result or {})}
 
 class SaveWorkflowRequest(BaseModel):
     workflow_json: Optional[Any] = None
@@ -394,7 +477,7 @@ class ExportTraeSkillRequest(BaseModel):
     workspace: Optional[str] = None
 
 class ExportCurrentWorkflowSkillRequest(BaseModel):
-    title: str = "Ai Multi Agent Workflow Skill"
+    title: str = "天韬（SkyT） Workflow Skill"
     description: str = ""
     workflow_json: Any
     mode: str = "download"
@@ -440,7 +523,7 @@ def _save_imported_workflow_template(payload: dict, *, tags: str = "Skill,Import
         payload.get("description") or "",
         "Imported",
         tags,
-        "Ai Multi Agent User",
+        "天韬（SkyT） User",
         payload["workflow_json"],
     )
 
@@ -1214,7 +1297,7 @@ async def chat_endpoint(req: ChatRequest):
                         plan_content_old = history[-1]["content"]
                         plan_prompt = f"{workspace_prompt}原先的计划：\n{plan_content_old}\n\n用户提出了新的修改意见：{req.message}\n请根据用户的意见修订计划，并输出完整的最新的 Markdown 计划书。"
                         
-                        msgs = [{"role": "system", "content": "你是Ai Multi Agent架构师，负责撰写项目执行计划。"}]
+                        msgs = [{"role": "system", "content": "你是天韬（SkyT）架构师，负责撰写项目执行计划。"}]
                         if history:
                             msgs.extend([{"role": "user" if h["role"] == "user" else "assistant", "content": h["content"]} for h in history[-5:]])
                         msgs.append({"role": "user", "content": plan_prompt})
@@ -1280,7 +1363,7 @@ async def chat_endpoint(req: ChatRequest):
                             "本轮只输出可审查计划，不要自动写入文件或运行命令。"
                         )
                         msgs = [
-                            {"role": "system", "content": "你是 Ai Multi Agent 云端 API 深度计划节点，负责基于本地 GPU 压缩上下文生成可审查、可批准执行的 Markdown 计划。"},
+                            {"role": "system", "content": "你是 天韬（SkyT） 云端 API 深度计划节点，负责基于本地 GPU 压缩上下文生成可审查、可批准执行的 Markdown 计划。"},
                             {"role": "user", "content": api_prompt}
                         ]
                         db.create_run_record(run_id, req.session_id, req.message or action_label)
@@ -1317,7 +1400,7 @@ async def chat_endpoint(req: ChatRequest):
                         template_name = workflow_summary.get("template_name") or (req.context_bundle or {}).get("template_name") or "Workflow Template"
                         routed_by_display = "GPU" if provider and any(x in provider.lower() for x in ["gemma", "ollama", "llama", "qwen"]) else "Cloud API"
                         if workflow_needs_workspace(workflow_summary, req.message) and not req.workspace:
-                            message = f"运行「{template_name}」前需要先绑定工作区。这个模板会生成或修改项目文件，Ai Multi Agent 必须先拿到明确目录边界。"
+                            message = f"运行「{template_name}」前需要先绑定工作区。这个模板会生成或修改项目文件，天韬（SkyT） 必须先拿到明确目录边界。"
                             db.create_run_record(run_id, req.session_id, req.message or template_name)
                             db.save_run_event(run_id, "WORKFLOW_WORKSPACE_REQUIRED", "WorkflowEngine", "SKIPPED", message, json.dumps({
                                 "input_payload": {"template_name": template_name, "workflow_summary": workflow_summary},
@@ -1356,7 +1439,7 @@ async def chat_endpoint(req: ChatRequest):
                     autonomy_mode = req.autonomy_mode or "supervised_auto"
                     if autonomy_mode in ("supervised_auto", "full_auto"):
                         if not req.workspace:
-                            message = "需要先绑定工作区，Ai Multi Agent 才能安全地自动读写文件、运行命令和启动服务。"
+                            message = "需要先绑定工作区，天韬（SkyT） 才能安全地自动读写文件、运行命令和启动服务。"
                             await q.put({
                                 "type": "approval_required",
                                 "response": message,
@@ -1442,7 +1525,7 @@ async def chat_endpoint(req: ChatRequest):
                                 if local_models:
                                     try:
                                         async with aiohttp.ClientSession() as session:
-                                            sys_prompt = f"你是一个智能助理Ai Multi Agent。{LANGUAGE_OUTPUT_RULE}下面是来自中国气象局的实时数据，请你用一句温柔自然的口语把今天的天气报给用户听，不要遗漏数据，切忌机械死板。"
+                                            sys_prompt = f"你是一个智能助理天韬（SkyT）。{LANGUAGE_OUTPUT_RULE}下面是来自中国气象局的实时数据，请你用一句温柔自然的口语把今天的天气报给用户听，不要遗漏数据，切忌机械死板。"
                                             payload = {
                                                 "model": local_models[0],
                                                 "messages": [{"role": "system", "content": sys_prompt}, {"role": "user", "content": f"原始气象数据：\n{result}"}],
@@ -1641,7 +1724,7 @@ async def chat_endpoint(req: ChatRequest):
                         autonomy_mode = "ask_each_step" if (req.context_bundle or {}).get("action") == "deep_think" else (req.autonomy_mode or "supervised_auto")
                         if autonomy_mode in ("supervised_auto", "full_auto"):
                             if not req.workspace:
-                                message = "需要先绑定工作区，Ai Multi Agent 才能安全地自动读写文件、运行命令和启动服务。"
+                                message = "需要先绑定工作区，天韬（SkyT） 才能安全地自动读写文件、运行命令和启动服务。"
                                 await q.put({
                                     "type": "approval_required",
                                     "response": message,
@@ -1685,7 +1768,7 @@ async def chat_endpoint(req: ChatRequest):
                             "并附带一些需要用户确认的开放性问题。"
                         )
                         
-                        msgs = [{"role": "system", "content": "你是Ai Multi Agent架构师，请输出专业的Markdown计划。\n【强制规则】：如果你要执行修改代码，由于已有了工作区，请根据工作区目录进行思考。"}]
+                        msgs = [{"role": "system", "content": "你是天韬（SkyT）架构师，请输出专业的Markdown计划。\n【强制规则】：如果你要执行修改代码，由于已有了工作区，请根据工作区目录进行思考。"}]
                         if history:
                             msgs.extend([{"role": "user" if h["role"] == "user" else "assistant", "content": h["content"]} for h in history[-5:]])
                         msgs.append({"role": "user", "content": plan_prompt})
@@ -1787,6 +1870,30 @@ def distill_run(run_id: str):
 def get_runs_endpoint(limit: int = 50):
     try:
         return {"runs": db.get_run_records(limit=limit)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/runs/sessions")
+def get_run_sessions_endpoint(limit: int = 50):
+    try:
+        return {"sessions": db.get_run_session_records(limit=limit)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/runs/sessions/{session_id}/events")
+def get_run_session_events_endpoint(session_id: str):
+    try:
+        events = db.get_run_session_events(session_id)
+        return {"events": events}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/runs/sessions/{session_id}/generate-markdown")
+async def generate_run_session_markdown_endpoint(session_id: str, req: MarkdownGenerateRequest):
+    try:
+        return await generate_session_markdown(session_id, kind=req.kind, workspace=req.workspace)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

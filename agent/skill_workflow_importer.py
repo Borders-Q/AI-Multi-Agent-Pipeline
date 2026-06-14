@@ -168,7 +168,7 @@ def _workflow_from_markdown(markdown: str, title: str, description: str, source_
         "meta": {
             "template_name": title,
             "description": description,
-            "demo_scene": "从 Trec/SOLO Skill 导入并恢复为 Ai Multi Agent 工作流模板。",
+            "demo_scene": "从 Trec/SOLO Skill 导入并恢复为 天韬（SkyT） 工作流模板。",
             "recommended_user_prompt": "按导入的 Skill 流程执行本次任务。",
             "expected_outputs": ["恢复后的工作流模板", "可编辑节点", "可运行回放记录"],
             "imported_from": "trae_skill_markdown",

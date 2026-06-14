@@ -1,6 +1,6 @@
 # 前端功能与组件管理文档
 
-本文用于快速定位 Ai Multi Agent 前端页面和组件，方便后续频繁修改 UI、弹窗、模型设置和比赛展示效果。
+本文用于快速定位 天韬（SkyT） 前端页面和组件，方便后续频繁修改 UI、弹窗、模型设置和比赛展示效果。
 
 ## 前端入口
 
@@ -32,7 +32,7 @@
 | --- | --- | --- |
 | `Sidebar` | 左侧导航、会话历史、新建对话、模型设置、工作区状态 | `sessions`、`sessionId`、`workspacePath`、`isOpen` |
 | `ModelManager` | 模型与 API Key 弹窗 | `models`、`newApiKey`、`editingProvider`、`editingAlias` |
-| `ChatMessage` | 用户和 Ai Multi Agent 消息渲染 | `msg.role`、`msg.type`、`msg.routed_by` |
+| `ChatMessage` | 用户和 天韬（SkyT） 消息渲染 | `msg.role`、`msg.type`、`msg.routed_by` |
 | `ExecutionSteps` | 步骤和日志卡片 | `activeWorkflow`、`actionLogs` |
 | `ApprovalCard` | 危险动作或缺少工作区时的确认提示 | `approval_required` 事件 |
 | `ChatComposer` | 底部多行输入、模型、工作流模式、工作区、发送/停止 | `input`、`provider`、`workflowMode`、`workspacePath`、`loading` |

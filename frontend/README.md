@@ -1,11 +1,11 @@
-# Ai Multi Agent 前端
+# 天韬（SkyT） 前端
 
-这里是 Ai Multi Agent 的 React + Vite 工作台前端，不再使用默认 Vite 模板说明。
+这里是 天韬（SkyT） 的 React + Vite 工作台前端，不再使用默认 Vite 模板说明。
 
 ## 启动与构建
 
 ```powershell
-cd E:\比赛\Ai Multi Agent\frontend
+cd E:\比赛\AI Mu\frontend
 npm install
 npm run dev -- --host 127.0.0.1
 ```

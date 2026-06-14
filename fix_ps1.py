@@ -7,9 +7,9 @@ def write_utf8_sig(filename, content):
 start_content = '''$ErrorActionPreference = "Stop"
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
-$Host.UI.RawUI.WindowTitle = "Ai Multi Agent_Server_Terminal - 一键启动"
+$Host.UI.RawUI.WindowTitle = "天韬（SkyT）_Server_Terminal - 一键启动"
 Write-Host "===================================" -ForegroundColor Cyan
-Write-Host "       Ai Multi Agent 系统 - 一键启动" -ForegroundColor Cyan
+Write-Host "       天韬（SkyT） 系统 - 一键启动" -ForegroundColor Cyan
 Write-Host "===================================" -ForegroundColor Cyan
 Write-Host ""
 
@@ -48,7 +48,7 @@ try {
 }
 
 Write-Host "`n===================================" -ForegroundColor Green
-Write-Host "  Ai Multi Agent 系统已成功启动" -ForegroundColor Green
+Write-Host "  天韬（SkyT） 系统已成功启动" -ForegroundColor Green
 Write-Host "  后端: http://localhost:8000"
 Write-Host "  前端: http://localhost:5173"
 Write-Host "===================================" -ForegroundColor Green
@@ -64,9 +64,9 @@ $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
 stop_content = '''$ErrorActionPreference = "Continue"
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
-$Host.UI.RawUI.WindowTitle = "Ai Multi Agent_Server_Terminal - 一键关闭"
+$Host.UI.RawUI.WindowTitle = "天韬（SkyT）_Server_Terminal - 一键关闭"
 Write-Host "===================================" -ForegroundColor Cyan
-Write-Host "       Ai Multi Agent 系统 - 一键关闭" -ForegroundColor Cyan
+Write-Host "       天韬（SkyT） 系统 - 一键关闭" -ForegroundColor Cyan
 Write-Host "===================================" -ForegroundColor Cyan
 Write-Host ""
 
@@ -87,15 +87,15 @@ Kill-Port 5173
 Kill-Port 8001
 
 Write-Host "清理残余的控制台与浏览器窗口..." -NoNewline
-Get-Process | Where-Object { $_.MainWindowTitle -match "Ai Multi Agent_Server_Terminal*" -and $_.Id -ne $PID } | Stop-Process -Force -ErrorAction SilentlyContinue
-Get-Process | Where-Object { $_.MainWindowTitle -match "Ai Multi Agent_Backend*" } | Stop-Process -Force -ErrorAction SilentlyContinue
-Get-Process | Where-Object { $_.MainWindowTitle -match "Ai Multi Agent_Frontend*" } | Stop-Process -Force -ErrorAction SilentlyContinue
-Get-Process | Where-Object { $_.MainWindowTitle -match "Ai Multi Agent_Registry*" } | Stop-Process -Force -ErrorAction SilentlyContinue
+Get-Process | Where-Object { $_.MainWindowTitle -match "天韬（SkyT）_Server_Terminal*" -and $_.Id -ne $PID } | Stop-Process -Force -ErrorAction SilentlyContinue
+Get-Process | Where-Object { $_.MainWindowTitle -match "天韬（SkyT）_Backend*" } | Stop-Process -Force -ErrorAction SilentlyContinue
+Get-Process | Where-Object { $_.MainWindowTitle -match "天韬（SkyT）_Frontend*" } | Stop-Process -Force -ErrorAction SilentlyContinue
+Get-Process | Where-Object { $_.MainWindowTitle -match "天韬（SkyT）_Registry*" } | Stop-Process -Force -ErrorAction SilentlyContinue
 Get-CimInstance Win32_Process -Filter "Name = 'msedge.exe' AND CommandLine LIKE '%127.0.0.1:5173%'" -ErrorAction SilentlyContinue | Invoke-CimMethod -MethodName Terminate -ErrorAction SilentlyContinue
 Write-Host " 已清理" -ForegroundColor Green
 
 Write-Host "`n===================================" -ForegroundColor Green
-Write-Host "  所有 Ai Multi Agent 服务已彻底强制关闭！" -ForegroundColor Green
+Write-Host "  所有 天韬（SkyT） 服务已彻底强制关闭！" -ForegroundColor Green
 Write-Host "===================================" -ForegroundColor Green
 Write-Host ""
 Start-Sleep -Seconds 3
@@ -104,9 +104,9 @@ Start-Sleep -Seconds 3
 restart_content = '''$ErrorActionPreference = "Continue"
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
-$Host.UI.RawUI.WindowTitle = "Ai Multi Agent_Server_Terminal - 一键重启"
+$Host.UI.RawUI.WindowTitle = "天韬（SkyT）_Server_Terminal - 一键重启"
 Write-Host "===================================" -ForegroundColor Cyan
-Write-Host "       Ai Multi Agent 系统 - 一键重启" -ForegroundColor Cyan
+Write-Host "       天韬（SkyT） 系统 - 一键重启" -ForegroundColor Cyan
 Write-Host "===================================" -ForegroundColor Cyan
 Write-Host ""
 
@@ -122,9 +122,9 @@ Kill-Port 8000
 Kill-Port 5173
 Kill-Port 8001
 
-Get-Process | Where-Object { $_.MainWindowTitle -match "Ai Multi Agent_Backend*" } | Stop-Process -Force -ErrorAction SilentlyContinue
-Get-Process | Where-Object { $_.MainWindowTitle -match "Ai Multi Agent_Frontend*" } | Stop-Process -Force -ErrorAction SilentlyContinue
-Get-Process | Where-Object { $_.MainWindowTitle -match "Ai Multi Agent_Registry*" } | Stop-Process -Force -ErrorAction SilentlyContinue
+Get-Process | Where-Object { $_.MainWindowTitle -match "天韬（SkyT）_Backend*" } | Stop-Process -Force -ErrorAction SilentlyContinue
+Get-Process | Where-Object { $_.MainWindowTitle -match "天韬（SkyT）_Frontend*" } | Stop-Process -Force -ErrorAction SilentlyContinue
+Get-Process | Where-Object { $_.MainWindowTitle -match "天韬（SkyT）_Registry*" } | Stop-Process -Force -ErrorAction SilentlyContinue
 Get-CimInstance Win32_Process -Filter "Name = 'msedge.exe' AND CommandLine LIKE '%127.0.0.1:5173%'" -ErrorAction SilentlyContinue | Invoke-CimMethod -MethodName Terminate -ErrorAction SilentlyContinue
 Write-Host "旧服务已彻底清理！" -ForegroundColor Green
 
@@ -168,7 +168,7 @@ try {
 }
 
 Write-Host "`n===================================" -ForegroundColor Green
-Write-Host "  Ai Multi Agent 系统已成功重启" -ForegroundColor Green
+Write-Host "  天韬（SkyT） 系统已成功重启" -ForegroundColor Green
 Write-Host "===================================" -ForegroundColor Green
 Write-Host "`n1. 所有服务现在均在【独立的最小化窗口】中后台运行！" -ForegroundColor Cyan
 Write-Host "2. 您现在可以【安全关闭本黑色窗口】，服务绝不会断开！" -ForegroundColor Cyan

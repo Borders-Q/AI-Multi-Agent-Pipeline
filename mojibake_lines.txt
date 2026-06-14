@@ -133,7 +133,7 @@
 133: }
 134: 
 135: function App() {
-136: const [messages, setMessages] = useState([{ role: 'agent', content: '欢迎使用 Ai Multi Agent 智能控制台。系统已就绪，请输入您的需求？' }]);
+136: const [messages, setMessages] = useState([{ role: 'agent', content: '欢迎使用 天韬（SkyT） 智能控制台。系统已就绪，请输入您的需求？' }]);
 137: const [input, setInput] = useState('');
 138: const [isLoading, setIsLoading] = useState(false);
 139: const [showClearConfirm, setShowClearConfirm] = useState(false);
@@ -299,7 +299,7 @@
 299: method: 'POST'
 300: });
 301: if (res.ok) {
-302: setMessages([{ role: 'agent', content: '欢迎使用 Ai Multi Agent 智能控制台。系统已就绪，请输入您的需求？' }]);
+302: setMessages([{ role: 'agent', content: '欢迎使用 天韬（SkyT） 智能控制台。系统已就绪，请输入您的需求？' }]);
 303: setTodos([]);
 304: setActionLogs([]);
 305: setActiveWorkflow([]);
@@ -319,11 +319,11 @@
 319: const data = await res.json();
 320: if (data.history && data.history.length > 0) {
 321: setMessages([
-322: { role: 'agent', content: '欢迎使用 Ai Multi Agent 智能控制台。系统已就绪，请输入您的需求？' },
+322: { role: 'agent', content: '欢迎使用 天韬（SkyT） 智能控制台。系统已就绪，请输入您的需求？' },
 323: ...data.history
 324: ]);
 325: } else {
-326: setMessages([{ role: 'agent', content: '欢迎使用 Ai Multi Agent 智能控制台。系统已就绪，请输入您的需求？'}]);
+326: setMessages([{ role: 'agent', content: '欢迎使用 天韬（SkyT） 智能控制台。系统已就绪，请输入您的需求？'}]);
 327: }
 328: setTimeout(() => scrollToBottom('auto'), 100);
 329: }
@@ -376,7 +376,7 @@
 376: const handleNewChat = () => {
 377: const newId = Date.now().toString();
 378: setSessionId(newId);
-379: setMessages([{ role: 'agent', content: '欢迎使用 Ai Multi Agent 智能控制台。系统已就绪，请输入您的需求？'}]);
+379: setMessages([{ role: 'agent', content: '欢迎使用 天韬（SkyT） 智能控制台。系统已就绪，请输入您的需求？'}]);
 380: setTodos([]);
 381: setActionLogs([]);
 382: setActiveWorkflow([]);
@@ -659,7 +659,7 @@
 659: <div className="app-container" style={{ alignItems: 'center', justifyContent: 'center' }}>
 660: <div className="card glass animate-fade-in" style={{ width: '100%', maxWidth: '480px', textAlign: 'center', padding: '40px' }}>
 661: <Sparkles size={48} color="var(--sys-color-primary)" style={{ marginBottom: '24px' }} />
-662: <h1 style={{ marginBottom: '8px' }}>澶╅煬 (Ai Multi Agent)</h1>
+662: <h1 style={{ marginBottom: '8px' }}>澶╅煬 (天韬（SkyT）)</h1>
 663: <p style={{ marginBottom: '32px', color: 'var(--sys-color-on-surface-variant)' }}>高度自治的多智能体指挥控制台。</p>
 664: 
 665: <button className="btn-primary" onClick={() => setEnteredSystem(true)} style={{ width: '100%', padding: '12px' }}>杩涘叆绯荤粺</button>
@@ -679,7 +679,7 @@
 679: <Sparkles size={20} color="var(--sys-color-on-primary-container)" />
 680: </div>
 681: <div style={{ display: isSidebarOpen ? 'block' : 'none', opacity: isSidebarOpen ? 1 : 0, transition: 'opacity 0.2s' }}>
-682: <h2 style={{ fontSize: '1.25rem', margin: 0 }}>澶╅煬 Ai Multi Agent</h2>
+682: <h2 style={{ fontSize: '1.25rem', margin: 0 }}>澶╅煬 天韬（SkyT）</h2>
 683: <p style={{ margin: 0, fontSize: '0.85rem' }}><span className={`badge badge-${activeProvider || 'unknown'}`}>{activeProvider || '未配置模型'}</span></p>
 684: </div>
 685: </div>
@@ -909,7 +909,7 @@
 909: {messages.length === 0 ? (
 910: <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', opacity: 0.5 }}>
 911: <Bot size={64} style={{ marginBottom: '16px', color: 'var(--sys-color-primary)' }} />
-912: <h2>Ai Multi Agent 鏅鸿兘涓灑</h2>
+912: <h2>天韬（SkyT） 鏅鸿兘涓灑</h2>
 913: <p>请在下方输入指令。您可以通过侧边栏管理任务流、监控节点或配置云端模型。</p>
 914: </div>
 915: ) : (
@@ -919,7 +919,7 @@
 919: <div key={idx} className={`message ${msg.role} animate-fade-in`} style={{ maxWidth: msg.role === 'agent' ? '90%' : '80%' }}>
 920: <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', fontSize: '0.8rem', opacity: 0.7 }}>
 921: {msg.role === 'user' ? <User size={14} /> : <Bot size={14} />}
-922: {msg.role === 'user' ? '鐢ㄦ埛' : 'Ai Multi Agent 绯荤粺'}
+922: {msg.role === 'user' ? '鐢ㄦ埛' : '天韬（SkyT） 绯荤粺'}
 923: {msg.role === 'agent' && msg.routed_by && (
 924: <span style={{
 925: backgroundColor: msg.routed_by === 'NPU' ? '#1a73e8' : (msg.routed_by?.includes('GPU') ? '#0f9d58' : '#673ab7'),
@@ -971,7 +971,7 @@
 971: {isLoading && (
 972: <div className="message agent animate-fade-in" style={{ maxWidth: '90%' }}>
 973: <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', fontSize: '0.8rem', opacity: 0.7 }}>
-974: <Bot size={14} /> Ai Multi Agent 绯荤粺
+974: <Bot size={14} /> 天韬（SkyT） 绯荤粺
 975: </div>
 976: 
 977: {actionLogs.length > 0 ? (

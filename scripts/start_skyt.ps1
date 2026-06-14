@@ -1,4 +1,4 @@
-# Ai Multi Agent Start Script (Optimized)
+# 天韬（SkyT） Start Script (Optimized)
 # Uses project .venv when available, then falls back to system Python.
 
 $ErrorActionPreference = "SilentlyContinue"
@@ -25,7 +25,7 @@ $pids = @{
     registry_pid = $registry.Id
 }
 $pids | ConvertTo-Json | Set-Content -Path (Join-Path $projectRoot "skyt_pids.json")
-Write-Output "Ai Multi Agent started with PIDs: $($server.Id), $($frontend.Id), $($registry.Id)"
+Write-Output "天韬（SkyT） started with PIDs: $($server.Id), $($frontend.Id), $($registry.Id)"
 
 # Wait for backend (usually ready in 2-3s now with lazy loading)
 Write-Output "Waiting for backend..."
@@ -54,5 +54,5 @@ while ($retryCount -lt 30) {
 }
 
 # Open browser
-Write-Output "Opening Ai Multi Agent frontend in browser..."
+Write-Output "Opening 天韬（SkyT） frontend in browser..."
 Start-Process msedge -ArgumentList "--app=http://127.0.0.1:5173" -ErrorAction SilentlyContinue

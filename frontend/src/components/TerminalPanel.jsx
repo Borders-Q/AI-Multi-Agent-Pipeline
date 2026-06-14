@@ -17,7 +17,7 @@ export default function TerminalPanel({ workspacePath, active, queuedCommand, on
   const [status, setStatus] = useState('idle');
 
   const writePrompt = () => {
-    const cwd = workspacePath || 'Ai Multi Agent workspace';
+    const cwd = workspacePath || '天韬（SkyT） workspace';
     termRef.current?.write(`\r\nPS ${cwd}> `);
   };
 
@@ -57,7 +57,7 @@ export default function TerminalPanel({ workspacePath, active, queuedCommand, on
     termRef.current = terminal;
     fitRef.current = fit;
 
-    terminal.write('Ai Multi Agent PowerShell 正在启动...\r\n');
+    terminal.write('天韬（SkyT） PowerShell 正在启动...\r\n');
     const onResize = () => fit.fit();
     window.addEventListener('resize', onResize);
 
@@ -123,7 +123,7 @@ export default function TerminalPanel({ workspacePath, active, queuedCommand, on
         const payload = JSON.parse(event.data);
         if (payload.type === 'ready') {
           readyRef.current = true;
-          termRef.current?.write('已连接到 Ai Multi Agent PowerShell\r\n');
+          termRef.current?.write('已连接到 天韬（SkyT） PowerShell\r\n');
           writePrompt();
         } else if (payload.type === 'stdout' || payload.type === 'stderr') {
           termRef.current?.write(payload.data);
@@ -169,7 +169,7 @@ export default function TerminalPanel({ workspacePath, active, queuedCommand, on
     <div className="terminal-panel">
       <div className="terminal-status">
         <span className={`status-dot ${status}`} />
-        PowerShell · {workspacePath || '默认 Ai Multi Agent 工作区'}
+        PowerShell · {workspacePath || '默认 天韬（SkyT） 工作区'}
       </div>
       <div ref={hostRef} className="terminal-host" />
     </div>

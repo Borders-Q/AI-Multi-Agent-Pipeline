@@ -1,226 +1,376 @@
 [
   {
-    "id": "slack_notifier",
-    "name": "Slack_Notifier",
-    "description": "Send notifications to a Slack channel.",
-    "icon": "💬",
-    "url": "/skills/slack_notifier.py"
+    "id": "json_formatter",
+    "name": "JSON_Formatter",
+    "description": "格式化、压缩和校验 JSON 文本，适合整理 API 返回、运行事件和 I/O Payload。",
+    "icon": "🧩",
+    "url": "/skills/json_formatter.py",
+    "category": "开发辅助",
+    "requires_network": false,
+    "credential_required": false,
+    "credential_note": ""
   },
   {
-    "id": "notion_sync",
-    "name": "Notion_Page_Sync",
-    "description": "Sync or create content in Notion workspaces.",
-    "icon": "📓",
-    "url": "/skills/notion_sync.py"
+    "id": "regex_extractor",
+    "name": "Regex_Extractor",
+    "description": "按正则表达式从文本中提取信息，适合处理日志、报错、URL 和结构化片段。",
+    "icon": "🔎",
+    "url": "/skills/regex_extractor.py",
+    "category": "开发辅助",
+    "requires_network": false,
+    "credential_required": false,
+    "credential_note": ""
   },
   {
-    "id": "jira_ticket",
-    "name": "Jira_Ticket_Creator",
-    "description": "Create and manage Jira tickets for agile teams.",
-    "icon": "🎫",
-    "url": "/skills/jira_ticket.py"
+    "id": "markdown_table_builder",
+    "name": "Markdown_Table_Builder",
+    "description": "把 CSV 风格文本转换为 Markdown 表格，用于报告、答辩材料和运行记录整理。",
+    "icon": "📋",
+    "url": "/skills/markdown_table_builder.py",
+    "category": "文档与比赛材料",
+    "requires_network": false,
+    "credential_required": false,
+    "credential_note": ""
   },
   {
-    "id": "postgres_query",
-    "name": "PostgreSQL_Query",
-    "description": "Execute read-only SQL queries on production DB.",
-    "icon": "🐘",
-    "url": "/skills/postgres_query.py"
+    "id": "text_insight_counter",
+    "name": "Text_Insight_Counter",
+    "description": "统计文本字数、行数、关键词频次，适合分析需求文档、运行日志和演讲稿。",
+    "icon": "📊",
+    "url": "/skills/text_insight_counter.py",
+    "category": "文档与比赛材料",
+    "requires_network": false,
+    "credential_required": false,
+    "credential_note": ""
   },
   {
-    "id": "mysql_analyzer",
-    "name": "MySQL_Analyzer",
-    "description": "Analyze MySQL schemas and query performance.",
-    "icon": "🐬",
-    "url": "/skills/mysql_analyzer.py"
+    "id": "requirement_summarizer",
+    "name": "Requirement_Summarizer",
+    "description": "把用户需求整理为目标、功能、技术栈、风险和下一步，适合 GPU 辅助 API 前置压缩。",
+    "icon": "🧠",
+    "url": "/skills/requirement_summarizer.py",
+    "category": "运行分析",
+    "requires_network": false,
+    "credential_required": false,
+    "credential_note": ""
   },
   {
-    "id": "aws_s3_manager",
-    "name": "AWS_S3_Manager",
-    "description": "List, upload, or download objects from Amazon S3.",
-    "icon": "☁️",
-    "url": "/skills/aws_s3_manager.py"
+    "id": "markdown_report_outline",
+    "name": "Markdown_Report_Outline",
+    "description": "根据任务主题生成中文 Markdown 报告大纲，用于比赛展示和历史工作记录。",
+    "icon": "📝",
+    "url": "/skills/markdown_report_outline.py",
+    "category": "文档与比赛材料",
+    "requires_network": false,
+    "credential_required": false,
+    "credential_note": ""
   },
   {
-    "id": "github_repo_analyzer",
+    "id": "log_error_analyzer",
+    "name": "Log_Error_Analyzer",
+    "description": "从日志中提取错误类型、最后报错位置和建议动作。",
+    "icon": "🧯",
+    "url": "/skills/log_error_analyzer.py",
+    "category": "开发辅助",
+    "requires_network": false,
+    "credential_required": false,
+    "credential_note": ""
+  },
+  {
+    "id": "api_payload_inspector",
+    "name": "API_Payload_Inspector",
+    "description": "检查 API Payload 的字段、大小和潜在空值，适合深度回放 I/O 排查。",
+    "icon": "📦",
+    "url": "/skills/api_payload_inspector.py",
+    "category": "运行分析",
+    "requires_network": false,
+    "credential_required": false,
+    "credential_note": ""
+  },
+  {
+    "id": "file_tree_summarizer",
+    "name": "File_Tree_Summarizer",
+    "description": "压缩目录树文本，提取核心文件类型和可展示重点。",
+    "icon": "🌳",
+    "url": "/skills/file_tree_summarizer.py",
+    "category": "开发辅助",
+    "requires_network": false,
+    "credential_required": false,
+    "credential_note": ""
+  },
+  {
+    "id": "code_snippet_packager",
+    "name": "Code_Snippet_Packager",
+    "description": "给代码片段补 Markdown 文件名代码块，便于工作流落盘和报告展示。",
+    "icon": "🧱",
+    "url": "/skills/code_snippet_packager.py",
+    "category": "开发辅助",
+    "requires_network": false,
+    "credential_required": false,
+    "credential_note": ""
+  },
+  {
+    "id": "run_record_summarizer",
+    "name": "Run_Record_Summarizer",
+    "description": "把运行记录 JSON 或文本压缩为中文工作记录摘要。",
+    "icon": "🗂️",
+    "url": "/skills/run_record_summarizer.py",
+    "category": "运行分析",
+    "requires_network": false,
+    "credential_required": false,
+    "credential_note": ""
+  },
+  {
+    "id": "token_usage_summarizer",
+    "name": "Token_Usage_Summarizer",
+    "description": "整理 API / 本地 GPU Token 消耗，突出真实值与估算值。",
+    "icon": "🪙",
+    "url": "/skills/token_usage_summarizer.py",
+    "category": "运行分析",
+    "requires_network": false,
+    "credential_required": false,
+    "credential_note": ""
+  },
+  {
+    "id": "replay_event_summarizer",
+    "name": "Replay_Event_Summarizer",
+    "description": "将深度回放事件列表整理成可讲解的中文时间线。",
+    "icon": "🎞️",
+    "url": "/skills/replay_event_summarizer.py",
+    "category": "运行分析",
+    "requires_network": false,
+    "credential_required": false,
+    "credential_note": ""
+  },
+  {
+    "id": "failure_reason_digest",
+    "name": "Failure_Reason_Digest",
+    "description": "从失败文本中归纳原因、影响和修复优先级。",
+    "icon": "🧭",
+    "url": "/skills/failure_reason_digest.py",
+    "category": "运行分析",
+    "requires_network": false,
+    "credential_required": false,
+    "credential_note": ""
+  },
+  {
+    "id": "env_var_checklist",
+    "name": "Env_Var_Checklist",
+    "description": "把需要配置的环境变量整理成检查清单，适合部署依赖和密钥准备。",
+    "icon": "🔐",
+    "url": "/skills/env_var_checklist.py",
+    "category": "开发辅助",
+    "requires_network": false,
+    "credential_required": false,
+    "credential_note": ""
+  },
+  {
+    "id": "port_conflict_diagnoser",
+    "name": "Port_Conflict_Diagnoser",
+    "description": "根据端口和日志生成端口占用排查建议，适合右侧网页预览失败场景。",
+    "icon": "🔌",
+    "url": "/skills/port_conflict_diagnoser.py",
+    "category": "运行分析",
+    "requires_network": false,
+    "credential_required": false,
+    "credential_note": ""
+  },
+  {
+    "id": "localhost_url_extractor",
+    "name": "Localhost_URL_Extractor",
+    "description": "从输出文本中提取 localhost / 127.0.0.1 预览地址。",
+    "icon": "🖥️",
+    "url": "/skills/localhost_url_extractor.py",
+    "category": "运行分析",
+    "requires_network": false,
+    "credential_required": false,
+    "credential_note": ""
+  },
+  {
+    "id": "requirements_generator",
+    "name": "Requirements_Generator",
+    "description": "根据项目类型生成基础 requirements.txt 建议。",
+    "icon": "📦",
+    "url": "/skills/requirements_generator.py",
+    "category": "开发辅助",
+    "requires_network": false,
+    "credential_required": false,
+    "credential_note": ""
+  },
+  {
+    "id": "sql_schema_draft",
+    "name": "SQL_Schema_Draft",
+    "description": "根据实体名称生成 SQLite 建表草稿，用于管理系统类项目演示。",
+    "icon": "🗄️",
+    "url": "/skills/sql_schema_draft.py",
+    "category": "开发辅助",
+    "requires_network": false,
+    "credential_required": false,
+    "credential_note": ""
+  },
+  {
+    "id": "html_form_checker",
+    "name": "HTML_Form_Checker",
+    "description": "检查 HTML 表单是否包含 label、name、必填项和提交按钮。",
+    "icon": "🧾",
+    "url": "/skills/html_form_checker.py",
+    "category": "开发辅助",
+    "requires_network": false,
+    "credential_required": false,
+    "credential_note": ""
+  },
+  {
+    "id": "css_theme_inspector",
+    "name": "CSS_Theme_Inspector",
+    "description": "粗略检查 CSS 颜色、变量和响应式媒体查询数量。",
+    "icon": "🎨",
+    "url": "/skills/css_theme_inspector.py",
+    "category": "开发辅助",
+    "requires_network": false,
+    "credential_required": false,
+    "credential_note": ""
+  },
+  {
+    "id": "csv_summarizer",
+    "name": "CSV_Summarizer",
+    "description": "统计 CSV 行列数量和空值情况，用于快速理解数据文件。",
+    "icon": "📑",
+    "url": "/skills/csv_summarizer.py",
+    "category": "文档与比赛材料",
+    "requires_network": false,
+    "credential_required": false,
+    "credential_note": ""
+  },
+  {
+    "id": "competition_demo_script",
+    "name": "Competition_Demo_Script",
+    "description": "根据功能点生成比赛演示讲解顺序，适合答辩前快速整理。",
+    "icon": "🎤",
+    "url": "/skills/competition_demo_script.py",
+    "category": "文档与比赛材料",
+    "requires_network": false,
+    "credential_required": false,
+    "credential_note": ""
+  },
+  {
+    "id": "test_case_generator",
+    "name": "Test_Case_Generator",
+    "description": "根据功能生成简洁测试用例清单，用于工作流验证报告。",
+    "icon": "✅",
+    "url": "/skills/test_case_generator.py",
+    "category": "开发辅助",
+    "requires_network": false,
+    "credential_required": false,
+    "credential_note": ""
+  },
+  {
+    "id": "install_command_builder",
+    "name": "Install_Command_Builder",
+    "description": "按国内网络生成 pip/npm 清华源安装命令。",
+    "icon": "⚙️",
+    "url": "/skills/install_command_builder.py",
+    "category": "开发辅助",
+    "requires_network": false,
+    "credential_required": false,
+    "credential_note": ""
+  },
+  {
+    "id": "webpage_title_fetcher",
+    "name": "Webpage_Title_Fetcher",
+    "description": "联网读取网页标题和描述，适合快速检查本地预览或公开页面。",
+    "icon": "🌐",
+    "url": "/skills/webpage_title_fetcher.py",
+    "category": "联网可选",
+    "requires_network": true,
+    "credential_required": false,
+    "credential_note": ""
+  },
+  {
+    "id": "github_analyzer",
     "name": "Github_Repo_Analyzer",
-    "description": "Fetch stars, forks, and stats for a Github Repo.",
+    "description": "获取指定 GitHub 仓库的基础信息，如 Stars、Forks、主要语言和描述。",
     "icon": "🐙",
-    "url": "/skills/github_repo_analyzer.py"
+    "url": "/skills/github_analyzer.py",
+    "category": "联网可选",
+    "requires_network": true,
+    "credential_required": false,
+    "credential_note": ""
   },
   {
     "id": "crypto_tracker",
     "name": "Crypto_Price_Tracker",
-    "description": "Fetch real-time USD prices for cryptocurrencies.",
+    "description": "查询加密货币实时美元价格，使用 CoinGecko 公开接口。",
     "icon": "💰",
-    "url": "/skills/crypto_tracker.py"
+    "url": "/skills/crypto_tracker.py",
+    "category": "联网可选",
+    "requires_network": true,
+    "credential_required": false,
+    "credential_note": ""
   },
   {
-    "id": "puppeteer_scraper",
-    "name": "Puppeteer_Scraper",
-    "description": "Run headless browser automation to scrape dynamic pages.",
-    "icon": "🕸️",
-    "url": "/skills/puppeteer_scraper.py"
+    "id": "slack_notifier",
+    "name": "Slack_Notifier",
+    "description": "向 Slack Channel 发送通知；需要配置 SLACK_WEBHOOK_URL。",
+    "icon": "💬",
+    "url": "/skills/slack_notifier.py",
+    "category": "需密钥连接器",
+    "requires_network": true,
+    "credential_required": true,
+    "credential_note": "需要环境变量 SLACK_WEBHOOK_URL。"
   },
   {
-    "id": "kubernetes_pod_monitor",
-    "name": "K8s_Pod_Monitor",
-    "description": "Monitor health and logs of Kubernetes pods.",
-    "icon": "☸️",
-    "url": "/skills/kubernetes_pod_monitor.py"
+    "id": "notion_page_sync",
+    "name": "Notion_Page_Sync",
+    "description": "同步或创建 Notion 页面；需要配置 Notion Token 和父页面 ID。",
+    "icon": "📓",
+    "url": "/skills/notion_page_sync.py",
+    "category": "需密钥连接器",
+    "requires_network": true,
+    "credential_required": true,
+    "credential_note": "需要 NOTION_TOKEN、NOTION_PARENT_PAGE_ID。"
   },
   {
-    "id": "docker_manager",
-    "name": "Docker_Container_Manager",
-    "description": "Manage local or remote Docker containers.",
-    "icon": "🐳",
-    "url": "/skills/docker_manager.py"
+    "id": "jira_ticket_creator",
+    "name": "Jira_Ticket_Creator",
+    "description": "创建 Jira 工单；需要配置 Jira 地址、邮箱和 API Token。",
+    "icon": "🎫",
+    "url": "/skills/jira_ticket_creator.py",
+    "category": "需密钥连接器",
+    "requires_network": true,
+    "credential_required": true,
+    "credential_note": "需要 JIRA_BASE_URL、JIRA_EMAIL、JIRA_API_TOKEN。"
   },
   {
-    "id": "google_drive_search",
-    "name": "Google_Drive_Search",
-    "description": "Search for documents in Google Drive.",
-    "icon": "📂",
-    "url": "/skills/google_drive_search.py"
-  },
-  {
-    "id": "salesforce_crm",
-    "name": "Salesforce_Lead_Fetch",
-    "description": "Fetch lead and opportunity data from Salesforce.",
+    "id": "aws_s3_manager",
+    "name": "AWS_S3_Manager",
+    "description": "管理 S3 对象；需要 AWS 凭据和 Bucket 配置。",
     "icon": "☁️",
-    "url": "/skills/salesforce_crm.py"
+    "url": "/skills/aws_s3_manager.py",
+    "category": "需密钥连接器",
+    "requires_network": true,
+    "credential_required": true,
+    "credential_note": "需要 AWS_ACCESS_KEY_ID、AWS_SECRET_ACCESS_KEY、AWS_DEFAULT_REGION、AWS_S3_BUCKET。"
   },
   {
-    "id": "stripe_payments",
-    "name": "Stripe_Payments_Viewer",
-    "description": "View recent transactions and subscriptions on Stripe.",
-    "icon": "💳",
-    "url": "/skills/stripe_payments.py"
+    "id": "postgresql_query",
+    "name": "PostgreSQL_Query",
+    "description": "PostgreSQL 只读查询连接器；需要 DATABASE_URL。",
+    "icon": "🐘",
+    "url": "/skills/postgresql_query.py",
+    "category": "需密钥连接器",
+    "requires_network": true,
+    "credential_required": true,
+    "credential_note": "需要 DATABASE_URL，且环境中安装 psycopg/psycopg2 后才能真实查询。"
   },
   {
-    "id": "zendesk_support",
-    "name": "Zendesk_Ticket_Manager",
-    "description": "Manage customer support tickets in Zendesk.",
-    "icon": "🎧",
-    "url": "/skills/zendesk_support.py"
-  },
-  {
-    "id": "hubspot_marketing",
-    "name": "Hubspot_Campaign_Stats",
-    "description": "Retrieve marketing campaign performance from Hubspot.",
-    "icon": "📈",
-    "url": "/skills/hubspot_marketing.py"
-  },
-  {
-    "id": "figma_asset_export",
-    "name": "Figma_Asset_Exporter",
-    "description": "Export design assets and tokens from Figma files.",
-    "icon": "🎨",
-    "url": "/skills/figma_asset_export.py"
-  },
-  {
-    "id": "vercel_deploy",
-    "name": "Vercel_Deploy_Trigger",
-    "description": "Trigger new deployments on Vercel.",
-    "icon": "▲",
-    "url": "/skills/vercel_deploy.py"
-  },
-  {
-    "id": "cloudflare_dns",
-    "name": "Cloudflare_DNS_Manager",
-    "description": "Manage DNS records via Cloudflare API.",
-    "icon": "☁️",
-    "url": "/skills/cloudflare_dns.py"
-  },
-  {
-    "id": "datadog_metrics",
-    "name": "Datadog_Metrics_Viewer",
-    "description": "View APM and infrastructure metrics from Datadog.",
-    "icon": "🐶",
-    "url": "/skills/datadog_metrics.py"
-  },
-  {
-    "id": "pagerduty_oncall",
-    "name": "PagerDuty_Oncall_Alert",
-    "description": "Trigger or acknowledge PagerDuty incidents.",
-    "icon": "📟",
-    "url": "/skills/pagerduty_oncall.py"
-  },
-  {
-    "id": "sentry_error_tracker",
-    "name": "Sentry_Error_Tracker",
-    "description": "Fetch latest unhandled exceptions from Sentry.",
-    "icon": "🐛",
-    "url": "/skills/sentry_error_tracker.py"
-  },
-  {
-    "id": "elastic_search",
-    "name": "ElasticSearch_Query",
-    "description": "Query massive log indices in ElasticSearch.",
-    "icon": "🔍",
-    "url": "/skills/elastic_search.py"
-  },
-  {
-    "id": "redis_cache_viewer",
-    "name": "Redis_Cache_Viewer",
-    "description": "View or invalidate keys in Redis cache.",
-    "icon": "🔴",
-    "url": "/skills/redis_cache_viewer.py"
-  },
-  {
-    "id": "mongodb_document",
-    "name": "MongoDB_Document_Finder",
-    "description": "Find NoSQL documents in MongoDB clusters.",
-    "icon": "🍃",
-    "url": "/skills/mongodb_document.py"
-  },
-  {
-    "id": "gmail_sender",
-    "name": "Gmail_Automated_Sender",
-    "description": "Draft and send emails via Gmail API.",
-    "icon": "✉️",
-    "url": "/skills/gmail_sender.py"
-  },
-  {
-    "id": "calendar_scheduler",
-    "name": "Google_Calendar_Scheduler",
-    "description": "Schedule meetings and check availability.",
-    "icon": "📅",
-    "url": "/skills/calendar_scheduler.py"
-  },
-  {
-    "id": "zoom_meeting",
-    "name": "Zoom_Meeting_Creator",
-    "description": "Generate Zoom meeting links programmatically.",
-    "icon": "📹",
-    "url": "/skills/zoom_meeting.py"
-  },
-  {
-    "id": "youtube_stats",
-    "name": "YouTube_Video_Stats",
-    "description": "Fetch view count and metrics for YouTube videos.",
-    "icon": "▶️",
-    "url": "/skills/youtube_stats.py"
-  },
-  {
-    "id": "twitter_sentiment",
-    "name": "Twitter_Sentiment_Analyzer",
-    "description": "Analyze public sentiment on specific topics.",
-    "icon": "🐦",
-    "url": "/skills/twitter_sentiment.py"
-  },
-  {
-    "id": "weather_radar",
-    "name": "Global_Weather_Radar",
-    "description": "Fetch high-precision weather forecasts globally.",
-    "icon": "⛅",
-    "url": "/skills/weather_radar.py"
-  },
-  {
-    "id": "stock_market",
-    "name": "WallStreet_Stock_Ticker",
-    "description": "Real-time NASDAQ/NYSE stock prices and PE ratios.",
-    "icon": "📉",
-    "url": "/skills/stock_market.py"
+    "id": "mysql_analyzer",
+    "name": "MySQL_Analyzer",
+    "description": "MySQL 结构分析连接器；需要 MySQL 连接环境变量。",
+    "icon": "🐬",
+    "url": "/skills/mysql_analyzer.py",
+    "category": "需密钥连接器",
+    "requires_network": true,
+    "credential_required": true,
+    "credential_note": "需要 MYSQL_HOST、MYSQL_USER、MYSQL_PASSWORD、MYSQL_DATABASE。"
   }
 ]

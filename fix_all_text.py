@@ -8,8 +8,8 @@ replacements = {
     "鑷畾涔夋妧鑳芥敞鍏ユ垚鍔燂紒": "自定义技能注入成功！",
     "鍚庣璇锋眰澶辫触": "后端请求失败",
     "閿欒": "错误",
-    "澶╅煬 (Ai Multi Agent)": "Ai Multi Agent",
-    "澶╅煬 Ai Multi Agent": "Ai Multi Agent",
+    "澶╅煬 (天韬（SkyT）)": "天韬（SkyT）",
+    "澶╅煬 天韬（SkyT）": "天韬（SkyT）",
     "杩涘叆绯荤粺": "进入系统",
     "鏅鸿兘瀵硅瘽": "智能对话",
     "鏁版嵁鐪嬫澘": "数据看板",
@@ -41,13 +41,13 @@ replacements = {
     "绔嬪嵆閲嶈瘯": "立即重试"
 }
 
-with codecs.open('g:/Ai Multi Agent/frontend/src/App.jsx', 'r', 'utf-8') as f:
+with codecs.open('g:/AI Mu/frontend/src/App.jsx', 'r', 'utf-8') as f:
     content = f.read()
 
 for k, v in replacements.items():
     content = content.replace(k, v)
 
-with codecs.open('g:/Ai Multi Agent/frontend/src/App.jsx', 'w', 'utf-8') as f:
+with codecs.open('g:/AI Mu/frontend/src/App.jsx', 'w', 'utf-8') as f:
     f.write(content)
 
 print("Done replacing all text")

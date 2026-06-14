@@ -1,6 +1,6 @@
-# Ai Multi Agent 本地 GPU 辅助 API 工作流
+# 天韬（SkyT） 本地 GPU 辅助 API 工作流
 
-本文记录 Ai Multi Agent 中本地 GPU 与云端 API 的分工。
+本文记录 天韬（SkyT） 中本地 GPU 与云端 API 的分工。
 
 ## 分工原则
 

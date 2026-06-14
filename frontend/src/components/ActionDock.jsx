@@ -8,6 +8,7 @@ import {
   Folder,
   Globe2,
   LayoutTemplate,
+  Maximize2,
   Play,
   RefreshCw,
   ShieldCheck,
@@ -26,7 +27,7 @@ const API_BASE = `http://${window.location.hostname}:8000`;
 const DEFAULT_BROWSER_URL = 'http://127.0.0.1:5173/dashboard';
 const clampDockWidth = (value) => Math.min(760, Math.max(320, Number(value) || 380));
 
-function BrowserPanel({ target }) {
+function BrowserPanel({ target, onRequestWide }) {
   const [url, setUrl] = useState(DEFAULT_BROWSER_URL);
   const [currentUrl, setCurrentUrl] = useState(DEFAULT_BROWSER_URL);
   const [history, setHistory] = useState([DEFAULT_BROWSER_URL]);
@@ -79,10 +80,11 @@ function BrowserPanel({ target }) {
           onKeyDown={(event) => event.key === 'Enter' && navigate()}
         />
         <BaseIconButton label="打开" tooltip="打开" onClick={navigate}><Globe2 size={16} /></BaseIconButton>
+        <BaseIconButton label="宽屏预览" tooltip="宽屏预览" onClick={onRequestWide}><Maximize2 size={16} /></BaseIconButton>
         <BaseIconButton label="在系统浏览器打开" tooltip="在系统浏览器打开" onClick={openSystem}><ExternalLink size={16} /></BaseIconButton>
       </div>
       <div className="browser-frame-shell">
-        <iframe key={`${currentUrl}-${key}`} src={currentUrl} aria-label="Ai Multi Agent 内置浏览器" sandbox="allow-same-origin allow-scripts allow-forms allow-popups" />
+        <iframe key={`${currentUrl}-${key}`} src={currentUrl} aria-label="天韬（SkyT） 内置浏览器" sandbox="allow-same-origin allow-scripts allow-forms allow-popups" />
         <div className="browser-fallback">
           <strong>页面拒绝嵌入时</strong>
           <span>使用右上角“在系统浏览器打开”继续访问。</span>
@@ -147,7 +149,7 @@ function WorkspacePanel({ workspacePath, onBindWorkspace }) {
       </div>
       <div className="workspace-panel-body">
         <span>{workspacePath ? '当前绑定目录' : '还没有绑定工作区'}</span>
-        <strong>{workspacePath || '绑定后 Ai Multi Agent 才会在明确项目边界内读写和运行。'}</strong>
+        <strong>{workspacePath || '绑定后 天韬（SkyT） 才会在明确项目边界内读写和运行。'}</strong>
         <button className="codex-button primary" type="button" onClick={onBindWorkspace}>
           {workspacePath ? '重新绑定工作区' : '绑定工作区'}
         </button>
@@ -190,6 +192,7 @@ export default function ActionDock({
   useEffect(() => {
     if (!browserTarget?.url) return;
     setIsOpen(true);
+    setDockWidth((value) => clampDockWidth(Math.max(value, 680)));
     if (isPlanPanelOpen) onPlanClose?.();
     setMode('browser');
   }, [browserTarget?.url, browserTarget?.ts]);
@@ -271,7 +274,7 @@ export default function ActionDock({
       <div className="action-dock-header">
         <div>
           <span>行动面板</span>
-          <strong>Ai Multi Agent 工作台</strong>
+          <strong>天韬（SkyT） 工作台</strong>
         </div>
         <BaseIconButton className="dock-collapse-button" label="折叠行动面板" tooltip="折叠行动面板" tooltipSide="left" onClick={() => setIsOpen(false)}>
           <ChevronRight size={18} />
@@ -304,7 +307,7 @@ export default function ActionDock({
           ))}
         </div>
       )}
-      {visibleMode === 'browser' && <BrowserPanel target={browserTarget} />}
+      {visibleMode === 'browser' && <BrowserPanel target={browserTarget} onRequestWide={() => setDockWidth(clampDockWidth(760))} />}
       {visibleMode === 'terminal' && (
         <TerminalPanel
           active={visibleMode === 'terminal'}

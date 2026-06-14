@@ -1,6 +1,6 @@
 # D:\xjb-test 参考项目理解总结
 
-本文件记录对 `D:\xjb-test` 的只读理解。该项目只作为 Ai Multi Agent 文档组织、架构表达和演示说明的参考，不运行、不测试、不修改，也不直接复制代码。
+本文件记录对 `D:\xjb-test` 的只读理解。该项目只作为 天韬（SkyT） 文档组织、架构表达和演示说明的参考，不运行、不测试、不修改，也不直接复制代码。
 
 ## 核心架构
 
@@ -39,7 +39,7 @@ Vue3 + TypeScript
 4. 对核心契约设置稳定边界，例如 `run_summary`、`ui_view_model`、`workflow_events`。
 5. 把历史文档和当前主文档分开，避免后续维护被旧方案误导。
 
-## 值得 Ai Multi Agent 参考的地方
+## 值得 天韬（SkyT） 参考的地方
 
 - 建立 `docs/README.md` 作为文档总入口。
 - 保留“项目上下文、系统架构、模块边界、后续生成规则、演示脚本、组件说明”的文档组合。
@@ -49,8 +49,8 @@ Vue3 + TypeScript
 
 ## 不应该照搬的地方
 
-- 不照搬 Vue + Java + FastAPI + MySQL 的三层平台结构。Ai Multi Agent 当前是 React/Vite + FastAPI + MySQL + Agent 工具层。
-- 不照搬 Java Gateway、JPA、Docker Compose 平台层，因为 Ai Multi Agent 没有这条主链路。
-- 不照搬 Figma-first 文档口径。Ai Multi Agent 当前重点是 Codex 风格工作台，而不是 Figma 设计同步系统。
-- 不照搬受控 CodeAgent 的简化接口定义。Ai Multi Agent 已经有自己的 `agent/tools/fs_tools.py`、终端、工作区绑定和自主模式。
-- 不把参考项目的历史文档体系直接堆到 Ai Multi Agent。Ai Multi Agent 只需要围绕后续维护和比赛展示的精简文档组。
+- 不照搬 Vue + Java + FastAPI + MySQL 的三层平台结构。天韬（SkyT） 当前是 React/Vite + FastAPI + MySQL + Agent 工具层。
+- 不照搬 Java Gateway、JPA、Docker Compose 平台层，因为 天韬（SkyT） 没有这条主链路。
+- 不照搬 Figma-first 文档口径。天韬（SkyT） 当前重点是 Codex 风格工作台，而不是 Figma 设计同步系统。
+- 不照搬受控 CodeAgent 的简化接口定义。天韬（SkyT） 已经有自己的 `agent/tools/fs_tools.py`、终端、工作区绑定和自主模式。
+- 不把参考项目的历史文档体系直接堆到 天韬（SkyT）。天韬（SkyT） 只需要围绕后续维护和比赛展示的精简文档组。

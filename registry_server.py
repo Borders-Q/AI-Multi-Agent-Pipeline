@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import uvicorn
 
-app = FastAPI(title="Ai Multi Agent Cloud Registry Mock")
+app = FastAPI(title="天韬（SkyT） Cloud Skill Registry")
 
 app.add_middleware(
     CORSMiddleware,

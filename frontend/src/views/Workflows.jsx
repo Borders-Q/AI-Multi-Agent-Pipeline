@@ -343,13 +343,13 @@ export default function Workflows({ sessionId = 'default', onRunWorkflowTemplate
       if (mode === 'workspace' && onBindWorkspace) {
         const selected = await onBindWorkspace();
         if (!selected) {
-          setNotice('已取消安装。请在安装时选择 Trec/SOLO 当前打开的项目根目录，例如 E:\\比赛，不要选择 E:\\比赛\\SkyT。');
+          setNotice('已取消安装。请在安装时选择 Trec/SOLO 当前打开的项目根目录，例如 E:\\比赛，不要选择当前系统目录 E:\\比赛\\AI Mu。');
           return;
         }
         targetWorkspace = selected;
       }
       if (mode === 'workspace' && !targetWorkspace) {
-        setNotice('安装到 Trec/SOLO 项目前需要先选择项目根目录，例如 E:\\比赛，不要选择 E:\\比赛\\SkyT。');
+        setNotice('安装到 Trec/SOLO 项目前需要先选择项目根目录，例如 E:\\比赛，不要选择当前系统目录 E:\\比赛\\AI Mu。');
         return;
       }
 
@@ -375,7 +375,7 @@ export default function Workflows({ sessionId = 'default', onRunWorkflowTemplate
       setExportDialogOpen(false);
     } catch (e) {
       const targetHint = mode === 'workspace'
-        ? `目标目录：${targetWorkspace || '未选择'}。请选择 Trec/SOLO 当前项目根目录，例如 E:\\比赛，不要选择 E:\\比赛\\SkyT。`
+        ? `目标目录：${targetWorkspace || '未选择'}。请选择 Trec/SOLO 当前项目根目录，例如 E:\\比赛，不要选择当前系统目录 E:\\比赛\\AI Mu。`
         : '';
       setNotice(`导出 Trec/SOLO Skill 失败：${e.message}${targetHint ? ` ${targetHint}` : ''}`);
     } finally {
@@ -614,7 +614,7 @@ export default function Workflows({ sessionId = 'default', onRunWorkflowTemplate
         <DialogTitle>导出为 Trec/SOLO Skill</DialogTitle>
         <DialogContent sx={{ display: 'grid', gap: 1.5, pt: 1, color: 'var(--sys-color-on-surface)' }}>
           <Typography variant="body2" sx={{ color: 'var(--sys-color-on-surface-variant)' }}>
-            将当前工作流模板转换为 Trec/SOLO 可识别的项目级 Skill。安装时请选择 Trec/SOLO 当前项目根目录，例如 <code>E:\比赛</code>，不要选择 <code>E:\比赛\SkyT</code>。
+            将当前工作流模板转换为 Trec/SOLO 可识别的项目级 Skill。安装时请选择 Trec/SOLO 当前项目根目录，例如 <code>E:\比赛</code>，不要选择当前系统目录 <code>E:\比赛\AI Mu</code>。
           </Typography>
           <Typography variant="body2" sx={{ color: 'var(--sys-color-on-surface-variant)' }}>
             生成结构：<code>.agents/skills/&lt;skill-name&gt;/SKILL.md</code>

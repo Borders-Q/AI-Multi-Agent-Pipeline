@@ -276,7 +276,7 @@ export default function NodePropertiesPanel() {
             />
             <TextField label="节点说明" multiline minRows={3} size="small" value={form.description || ''} onChange={(event) => setField('description', event.target.value)} />
             <TextField label="额外指令" multiline minRows={4} size="small" value={form.instruction || ''} onChange={(event) => setField('instruction', event.target.value)} placeholder="例如：只输出验收标准，不写代码。" />
-            <TextField label="系统提示词覆盖" multiline minRows={4} size="small" value={form.systemPrompt || ''} onChange={(event) => setField('systemPrompt', event.target.value)} placeholder="留空则使用 Ai Multi Agent 默认节点执行提示。" />
+            <TextField label="系统提示词覆盖" multiline minRows={4} size="small" value={form.systemPrompt || ''} onChange={(event) => setField('systemPrompt', event.target.value)} placeholder="留空则使用 天韬（SkyT） 默认节点执行提示。" />
           </Box>
         )}
 

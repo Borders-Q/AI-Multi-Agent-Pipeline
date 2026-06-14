@@ -125,7 +125,7 @@ function EditorCanvas() {
             <div className="palette-head">
               <div>
                 <strong>Agent 节点库</strong>
-                <span>拖入画布，编排 Ai Multi Agent 工作流</span>
+                <span>拖入画布，编排 天韬（SkyT） 工作流</span>
               </div>
               <span className="palette-count">{filteredAgents.length} 个</span>
             </div>

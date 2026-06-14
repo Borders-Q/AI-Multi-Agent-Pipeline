@@ -1,7 +1,7 @@
 import codecs
 import re
 
-with codecs.open('g:/Ai Multi Agent/frontend/src/App.jsx', 'r', 'utf-8', errors='ignore') as f:
+with codecs.open('g:/AI Mu/frontend/src/App.jsx', 'r', 'utf-8', errors='ignore') as f:
     content = f.read()
 
 def recover_mojibake(match):
@@ -29,7 +29,7 @@ pattern = re.compile(r'[^\x00-\x7F]+')
 
 new_content = pattern.sub(recover_mojibake, content)
 
-with codecs.open('g:/Ai Multi Agent/frontend/src/App_recovered.jsx', 'w', 'utf-8') as f:
+with codecs.open('g:/AI Mu/frontend/src/App_recovered.jsx', 'w', 'utf-8') as f:
     f.write(new_content)
 
 print("Recovery attempted and saved to App_recovered.jsx")

@@ -23,7 +23,7 @@ if not ENCRYPTION_KEY:
 fernet = Fernet(ENCRYPTION_KEY.encode('utf-8'))
 
 _local = threading.local()
-OFFICIAL_WORKFLOW_SEED_VERSION = 3
+OFFICIAL_WORKFLOW_SEED_VERSION = 4
 
 @contextmanager
 def get_connection(use_db=True):
@@ -124,18 +124,24 @@ def _workflow_node(node_id, label, role, description, instruction, x, y, agent_i
         },
     }
 
-def _workflow_edge(edge_id, source, target, label=""):
+def _workflow_edge(edge_id, source, target, label="", edge_type="control", condition="", loop_policy=None):
     return {
         "id": edge_id,
         "source": source,
         "target": target,
         "type": "smoothstep",
         "label": label,
+        "data": {
+            "edgeType": edge_type,
+            "condition": condition,
+            "label": label,
+            "loopPolicy": loop_policy
+        },
         "markerEnd": {"type": "arrowclosed", "width": 18, "height": 18},
         "style": {"strokeWidth": 2},
     }
 
-def _build_competition_workflow_template(template_id, title, description, demo_scene, recommended_prompt, nodes_def, meta):
+def _build_competition_workflow_template(template_id, title, description, demo_scene, recommended_prompt, nodes_def, meta, edges_def=None):
     nodes = []
     node_list = []
     for idx, item in enumerate(nodes_def, start=1):
@@ -162,14 +168,36 @@ def _build_competition_workflow_template(template_id, title, description, demo_s
             "input": item.get("inputs", ["input"]),
             "output": item.get("outputs", ["output"]),
         })
-    edges = [
-        _workflow_edge(f"{template_id}_e{idx}", nodes[idx - 1]["id"], nodes[idx]["id"], f"{idx} -> {idx + 1}")
-        for idx in range(1, len(nodes))
-    ]
-    edge_list = [
-        {"from": nodes_def[idx - 1]["name"], "to": nodes_def[idx]["name"], "order": idx}
-        for idx in range(1, len(nodes_def))
-    ]
+    
+    if edges_def is not None:
+        edges = []
+        edge_list = []
+        for idx, edef in enumerate(edges_def, start=1):
+            source_id = f"{template_id}_n{edef['source_idx']}"
+            target_id = f"{template_id}_n{edef['target_idx']}"
+            edges.append(_workflow_edge(
+                f"{template_id}_e{idx}", 
+                source_id, 
+                target_id, 
+                label=edef.get("label", ""),
+                edge_type=edef.get("edge_type", "control"),
+                condition=edef.get("condition", ""),
+                loop_policy=edef.get("loop_policy")
+            ))
+            edge_list.append({
+                "from": nodes_def[edef['source_idx'] - 1]["name"],
+                "to": nodes_def[edef['target_idx'] - 1]["name"],
+                "order": idx
+            })
+    else:
+        edges = [
+            _workflow_edge(f"{template_id}_e{idx}", nodes[idx - 1]["id"], nodes[idx]["id"], label=f"{idx} -> {idx + 1}")
+            for idx in range(1, len(nodes))
+        ]
+        edge_list = [
+            {"from": nodes_def[idx - 1]["name"], "to": nodes_def[idx]["name"], "order": idx}
+            for idx in range(1, len(nodes_def))
+        ]
     workflow_meta = {
         "template_id": template_id,
         "template_name": title,
@@ -192,7 +220,7 @@ def competition_workflow_templates():
             "description": "把代码工程生成拆成需求理解、架构规划、代码生成、检查和报告，适合展示多 Agent 协作。",
             "stage": "Published",
             "tags": "Competition,Engineering,Code,Demo",
-            "author": "Ai Multi Agent System",
+            "author": "天韬（SkyT） System",
             "workflow_json": _build_competition_workflow_template(
                 "tmpl_competition_engineering_pipeline",
                 "AI 工程生成流水线",
@@ -210,7 +238,7 @@ def competition_workflow_templates():
                     "expected_outputs": ["项目结构", "核心代码块", "运行说明", "检查建议", "最终报告"],
                     "replay_highlights": ["每个 Agent 的输入输出", "代码生成节点的代码块", "检查节点的风险列表", "Token 使用情况"],
                     "report_highlights": ["需求摘要", "文件结构", "运行方式", "后续优化建议"],
-                    "competition_demo_value": "最直观展示 Ai Multi Agent 能把复杂代码任务拆成可执行、可回放的多节点流程。",
+                    "competition_demo_value": "最直观展示 天韬（SkyT） 能把复杂代码任务拆成可执行、可回放的多节点流程。",
                     "estimated_complexity": "高",
                     "whether_api_needed": True,
                     "whether_gpu_needed": True,
@@ -229,15 +257,22 @@ def competition_workflow_templates():
                     "token_cost_notes": "本地 GPU 可先整理需求，云 API 负责关键生成，适合展示 Token 分层。",
                     "risk_notes": "代码落盘和依赖安装应在绑定工作区后演示，高风险命令必须确认。",
                 },
+                edges_def=[
+                    {"source_idx": 1, "target_idx": 2, "label": "", "edge_type": "control"},
+                    {"source_idx": 2, "target_idx": 3, "label": "", "edge_type": "control"},
+                    {"source_idx": 3, "target_idx": 4, "label": "", "edge_type": "control"},
+                    {"source_idx": 4, "target_idx": 3, "label": "检查失败", "edge_type": "loop", "condition": "success == false", "loop_policy": {"maxIterations": 3}},
+                    {"source_idx": 4, "target_idx": 5, "label": "检查通过", "edge_type": "branch", "condition": "else"},
+                ]
             ),
         },
         {
             "template_id": "tmpl_competition_docs_pipeline",
             "title": "项目文档整理流水线",
-            "description": "读取并压缩项目资料，生成维护文档和历史工作记录，展示 Ai Multi Agent 的项目记忆能力。",
+            "description": "读取并压缩项目资料，生成维护文档和历史工作记录，展示 天韬（SkyT） 的项目记忆能力。",
             "stage": "Published",
             "tags": "Competition,Docs,Markdown,Memory",
-            "author": "Ai Multi Agent System",
+            "author": "天韬（SkyT） System",
             "workflow_json": _build_competition_workflow_template(
                 "tmpl_competition_docs_pipeline",
                 "项目文档整理流水线",
@@ -255,7 +290,7 @@ def competition_workflow_templates():
                     "expected_outputs": ["文档索引", "架构摘要", "压缩上下文", "Markdown 指南", "归档摘要"],
                     "replay_highlights": ["上下文压缩前后差异", "Markdown 生成节点", "归档结论"],
                     "report_highlights": ["项目结构", "核心模块", "后续维护建议"],
-                    "competition_demo_value": "体现 Ai Multi Agent 能为长期项目维护和 vibe coding 保留可复用项目记忆。",
+                    "competition_demo_value": "体现 天韬（SkyT） 能为长期项目维护和 vibe coding 保留可复用项目记忆。",
                     "estimated_complexity": "中",
                     "whether_api_needed": False,
                     "whether_gpu_needed": True,
@@ -277,11 +312,11 @@ def competition_workflow_templates():
             "description": "把 Bug 描述转成定位、分析、方案和验证步骤，适合展示可控修复过程。",
             "stage": "Published",
             "tags": "Competition,Bugfix,Replay,Quality",
-            "author": "Ai Multi Agent System",
+            "author": "天韬（SkyT） System",
             "workflow_json": _build_competition_workflow_template(
                 "tmpl_competition_bugfix_pipeline",
                 "问题定位与修复流水线",
-                "展示 Ai Multi Agent 如何从用户描述出发，逐步定位问题并给出最小修复方案。",
+                "展示 天韬（SkyT） 如何从用户描述出发，逐步定位问题并给出最小修复方案。",
                 "用户描述一个 UI 问题、功能异常或后端报错。",
                 "页面流式输出时我往上滚会被强制拉回底部，请帮我定位并给出修复方案。",
                 [
@@ -295,7 +330,7 @@ def competition_workflow_templates():
                     "expected_outputs": ["问题定义", "候选文件", "根因分析", "最小修复方案", "验证清单"],
                     "replay_highlights": ["文件定位依据", "根因分析节点", "验证建议节点"],
                     "report_highlights": ["Bug 现象", "根因", "修改范围", "测试结果"],
-                    "competition_demo_value": "体现 Ai Multi Agent 不是乱改代码，而是可观察地定位、分析、修复和验证。",
+                    "competition_demo_value": "体现 天韬（SkyT） 不是乱改代码，而是可观察地定位、分析、修复和验证。",
                     "estimated_complexity": "中",
                     "whether_api_needed": True,
                     "whether_gpu_needed": True,
@@ -322,13 +357,13 @@ def competition_workflow_templates():
             "description": "围绕比赛展示目标优化 UI、演示路径和讲解文案，突出核心亮点。",
             "stage": "Published",
             "tags": "Competition,Demo,UI,Presentation",
-            "author": "Ai Multi Agent System",
+            "author": "天韬（SkyT） System",
             "workflow_json": _build_competition_workflow_template(
                 "tmpl_competition_demo_enhance_pipeline",
                 "比赛演示增强流水线",
                 "把比赛展示优化拆成目标、视觉层级、交互简化、路径和讲解词。",
                 "用户希望优化页面视觉效果、展示路径或比赛讲解效果。",
-                "请帮我优化 Ai Multi Agent 工作流页面的比赛展示路径，让评委快速看懂多 Agent 协作价值。",
+                "请帮我优化 天韬（SkyT） 工作流页面的比赛展示路径，让评委快速看懂多 Agent 协作价值。",
                 [
                     {"name": "展示目标 Agent", "role": "比赛价值提炼者", "description": "判断这个功能在比赛中要突出什么价值。", "instruction": "输出一句核心展示目标和三个支撑点。", "agent_id": "ProductAgent", "stage": "analysis", "color": "#ffb347", "icon": "user", "inputs": ["demo_goal"], "outputs": ["core_value"]},
                     {"name": "UI 重点 Agent", "role": "视觉层级设计师", "description": "分析页面视觉层级和展示重点。", "instruction": "说明应该强调哪些区域，弱化哪些控件。", "agent_id": "custom_agent", "stage": "generation", "color": "#60a5fa", "icon": "sparkles", "inputs": ["core_value"], "outputs": ["ui_priority"]},
@@ -362,7 +397,7 @@ def competition_workflow_templates():
             "description": "展示本地 GPU 先整理上下文，再由云端 API 高质量生成，并记录 Token 与回放。",
             "stage": "Published",
             "tags": "Competition,GPU,API,Token,Replay",
-            "author": "Ai Multi Agent System",
+            "author": "天韬（SkyT） System",
             "workflow_json": _build_competition_workflow_template(
                 "tmpl_competition_gpu_api_pipeline",
                 "本地 GPU 辅助 API 生成流水线",
@@ -380,7 +415,7 @@ def competition_workflow_templates():
                     "expected_outputs": ["GPU 需求理解", "压缩上下文", "API 输入", "最终方案", "Token 与回放摘要"],
                     "replay_highlights": ["GPU 与 API 分工", "Token Usage 事件", "压缩上下文如何进入 API"],
                     "report_highlights": ["协作策略", "Token 消耗", "最终交付物"],
-                    "competition_demo_value": "最能体现 Ai Multi Agent 的系统级优势：本地 GPU 辅助 API，而不是替代 API。",
+                    "competition_demo_value": "最能体现 天韬（SkyT） 的系统级优势：本地 GPU 辅助 API，而不是替代 API。",
                     "estimated_complexity": "高",
                     "whether_api_needed": True,
                     "whether_gpu_needed": True,
@@ -559,7 +594,7 @@ def init_db():
             row = cursor.fetchone()
             if row['count'] == 0:
                 default_agents = [
-                    ('AiMultiAgentCore', 'Ai Multi Agent 深思', '深度反思与博弈，负责最复杂逻辑推演', '#b142ff', 'brain'),
+                    ('AiMultiAgentCore', '天韬（SkyT） 深思', '深度反思与博弈，负责最复杂逻辑推演', '#b142ff', 'brain'),
                     ('NPU', 'NPU高速节点', '极速缓冲响应，处理结构化快速任务', '#1a73e8', 'zap'),
                     ('GPU', 'GPU拟人渲染', '拟人化语音和文本渲染', '#0f9d58', 'sparkles'),
                     ('WebSearch', '搜索节点', '负责全网搜索资料并整合', '#4facfe', 'search'),
@@ -581,22 +616,22 @@ def init_db():
                 if has_legacy_core and not has_new_core:
                     cursor.execute(
                         "UPDATE agents SET agent_id=%s, name=%s, description=%s WHERE agent_id=%s",
-                        ("AiMultiAgentCore", "Ai Multi Agent 深思", "深度反思与博弈，负责最复杂逻辑推演", legacy_agent_id)
+                        ("AiMultiAgentCore", "天韬（SkyT） 深思", "深度反思与博弈，负责最复杂逻辑推演", legacy_agent_id)
                     )
                 else:
                     cursor.execute(
                         "UPDATE agents SET name=%s, description=%s WHERE agent_id=%s OR name LIKE %s",
-                        ("Ai Multi Agent 深思", "深度反思与博弈，负责最复杂逻辑推演", "AiMultiAgentCore", f"%{legacy_name}%")
+                        ("天韬（SkyT） 深思", "深度反思与博弈，负责最复杂逻辑推演", "AiMultiAgentCore", f"%{legacy_name}%")
                     )
                 
             # Seed default workflow template if empty
             cursor.execute("SELECT COUNT(*) as count FROM workflow_templates")
             row = cursor.fetchone()
             if row['count'] == 0:
-                default_wf = '{"nodes":[{"id":"node_1","type":"default","position":{"x":100,"y":100},"data":{"label":"AiMultiAgentCore","name":"Ai Multi Agent 深思"},"style":{"border":"2px solid #b142ff"}}],"edges":[]}'
+                default_wf = '{"nodes":[{"id":"node_1","type":"default","position":{"x":100,"y":100},"data":{"label":"AiMultiAgentCore","name":"天韬（SkyT） 深思"},"style":{"border":"2px solid #b142ff"}}],"edges":[]}'
                 cursor.execute(
                     "INSERT INTO workflow_templates (template_id, title, description, stage, tags, author, workflow_json) VALUES (%s, %s, %s, %s, %s, %s, %s)",
-                    ("tmpl_default_1", "标准深思流", "默认的 Ai Multi Agent 深度思考工作流", "Published", "Official,Default", "Ai Multi Agent System", default_wf)
+                    ("tmpl_default_1", "标准深思流", "默认的 天韬（SkyT） 深度思考工作流", "Published", "Official,Default", "天韬（SkyT） System", default_wf)
                 )
             seed_competition_workflow_templates(cursor)
 
@@ -614,7 +649,7 @@ def seed_competition_workflow_templates(cursor=None):
                 continue
 
             legacy_author = "Sky" + "T System"
-            official_authors = {"Ai Multi Agent System", legacy_author}
+            official_authors = {"天韬（SkyT） System", legacy_author}
             should_update = existing.get("author") in official_authors
             try:
                 current_meta = (json.loads(existing.get("workflow_json") or "{}").get("meta") or {})
@@ -759,8 +794,18 @@ def get_history(session_id: str):
 def clear_history(session_id: str):
     with get_connection() as conn:
         with conn.cursor() as cursor:
+            cursor.execute("SELECT run_id FROM run_records WHERE session_id = %s", (session_id,))
+            run_ids = [row["run_id"] for row in cursor.fetchall()]
+            if run_ids:
+                placeholders = ",".join(["%s"] * len(run_ids))
+                cursor.execute(f"DELETE FROM run_events WHERE run_id IN ({placeholders})", tuple(run_ids))
+                cursor.execute(f"DELETE FROM run_records WHERE run_id IN ({placeholders})", tuple(run_ids))
             cursor.execute("DELETE FROM messages WHERE session_id = %s", (session_id,))
             cursor.execute("DELETE FROM sessions WHERE session_id = %s", (session_id,))
+            return {
+                "deleted_runs": len(run_ids),
+                "deleted_session_id": session_id,
+            }
 
 # --- Run History & Events Analytics ---
 
@@ -808,6 +853,219 @@ def get_run_records(limit: int = 50):
             cursor.execute("SELECT * FROM run_records ORDER BY created_at DESC LIMIT %s", (limit,))
             return cursor.fetchall()
 
+def get_run_session_records(limit: int = 50):
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT
+                    r.session_id,
+                    COALESCE(NULLIF(s.title, ''), '新对话') AS title,
+                    COUNT(*) AS run_count,
+                    SUM(IF(r.success=1, 1, 0)) AS success_count,
+                    SUM(IF(r.success=1, 0, 1)) AS failed_count,
+                    IF(SUM(IF(r.success=1, 0, 1)) = 0, 1, 0) AS success,
+                    AVG(r.quality_score) AS quality_score,
+                    SUM(r.total_tokens) AS total_tokens,
+                    SUM(r.api_tokens) AS api_tokens,
+                    SUM(r.local_tokens) AS local_tokens,
+                    IF(SUM(r.total_tokens) > 0, 'mixed', 'none') AS token_source,
+                    MIN(r.created_at) AS first_run_at,
+                    MAX(r.updated_at) AS last_run_at,
+                    MAX(r.created_at) AS created_at,
+                    SUBSTRING_INDEX(GROUP_CONCAT(r.run_id ORDER BY r.created_at DESC SEPARATOR '|||'), '|||', 1) AS latest_run_id,
+                    SUBSTRING_INDEX(GROUP_CONCAT(COALESCE(r.requirement, '') ORDER BY r.created_at DESC SEPARATOR '|||'), '|||', 1) AS requirement,
+                    SUBSTRING_INDEX(GROUP_CONCAT(COALESCE(r.requirement, '') ORDER BY r.created_at ASC SEPARATOR '|||'), '|||', 1) AS first_requirement
+                FROM run_records r
+                LEFT JOIN sessions s ON s.session_id = r.session_id
+                WHERE r.session_id IS NOT NULL AND r.session_id != ''
+                GROUP BY r.session_id, s.title
+                ORDER BY last_run_at DESC
+                LIMIT %s
+                """,
+                (limit,),
+            )
+            rows = cursor.fetchall()
+            for row in rows:
+                row["run_id"] = row.get("session_id")
+                row["record_type"] = "session"
+                row["quality_score"] = float(row.get("quality_score") or 0)
+                row["total_tokens"] = int(row.get("total_tokens") or 0)
+                row["api_tokens"] = int(row.get("api_tokens") or 0)
+                row["local_tokens"] = int(row.get("local_tokens") or 0)
+                row["run_count"] = int(row.get("run_count") or 0)
+                row["success_count"] = int(row.get("success_count") or 0)
+                row["failed_count"] = int(row.get("failed_count") or 0)
+                row["success"] = bool(row.get("success"))
+            return rows
+
+def get_run_session_detail(session_id: str):
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT
+                    r.session_id,
+                    COALESCE(NULLIF(s.title, ''), '新对话') AS title,
+                    COUNT(*) AS run_count,
+                    SUM(IF(r.success=1, 1, 0)) AS success_count,
+                    SUM(IF(r.success=1, 0, 1)) AS failed_count,
+                    IF(SUM(IF(r.success=1, 0, 1)) = 0, 1, 0) AS success,
+                    AVG(r.quality_score) AS quality_score,
+                    SUM(r.total_tokens) AS total_tokens,
+                    SUM(r.api_tokens) AS api_tokens,
+                    SUM(r.local_tokens) AS local_tokens,
+                    IF(SUM(r.total_tokens) > 0, 'mixed', 'none') AS token_source,
+                    MIN(r.created_at) AS first_run_at,
+                    MAX(r.updated_at) AS last_run_at,
+                    MAX(r.created_at) AS created_at,
+                    SUBSTRING_INDEX(GROUP_CONCAT(r.run_id ORDER BY r.created_at DESC SEPARATOR '|||'), '|||', 1) AS latest_run_id,
+                    SUBSTRING_INDEX(GROUP_CONCAT(COALESCE(r.requirement, '') ORDER BY r.created_at DESC SEPARATOR '|||'), '|||', 1) AS requirement,
+                    SUBSTRING_INDEX(GROUP_CONCAT(COALESCE(r.requirement, '') ORDER BY r.created_at ASC SEPARATOR '|||'), '|||', 1) AS first_requirement
+                FROM run_records r
+                LEFT JOIN sessions s ON s.session_id = r.session_id
+                WHERE r.session_id=%s
+                GROUP BY r.session_id, s.title
+                """,
+                (session_id,),
+            )
+            row = cursor.fetchone()
+            if not row:
+                return None
+            row["run_id"] = row.get("session_id")
+            row["record_type"] = "session"
+            row["quality_score"] = float(row.get("quality_score") or 0)
+            row["total_tokens"] = int(row.get("total_tokens") or 0)
+            row["api_tokens"] = int(row.get("api_tokens") or 0)
+            row["local_tokens"] = int(row.get("local_tokens") or 0)
+            row["run_count"] = int(row.get("run_count") or 0)
+            row["success_count"] = int(row.get("success_count") or 0)
+            row["failed_count"] = int(row.get("failed_count") or 0)
+            row["success"] = bool(row.get("success"))
+            row["events"] = get_run_session_events(session_id)
+            return row
+
+def get_run_session_events(session_id: str):
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "SELECT * FROM run_records WHERE session_id=%s ORDER BY created_at ASC, run_id ASC",
+                (session_id,),
+            )
+            runs = cursor.fetchall()
+            cursor.execute(
+                "SELECT id, role, content, type, routed_by, metadata_json, created_at FROM messages WHERE session_id=%s ORDER BY created_at ASC, id ASC",
+                (session_id,),
+            )
+            messages = cursor.fetchall()
+            run_ids = [r["run_id"] for r in runs]
+            events_by_run = {}
+            if run_ids:
+                placeholders = ",".join(["%s"] * len(run_ids))
+                cursor.execute(
+                    f"SELECT * FROM run_events WHERE run_id IN ({placeholders}) ORDER BY created_at ASC, id ASC",
+                    tuple(run_ids),
+                )
+                for event in cursor.fetchall():
+                    events_by_run.setdefault(event.get("run_id"), []).append(event)
+
+    session_events = []
+    order = 0
+
+    def add_event(event):
+        nonlocal order
+        event["_order"] = order
+        order += 1
+        session_events.append(event)
+
+    for msg in messages:
+        role = msg.get("role")
+        msg_type = msg.get("type") or "message"
+        routed_by = msg.get("routed_by")
+        is_user = role == "user"
+        status = "ERROR" if msg_type == "error" else "SUCCESS"
+        detail = {
+            "input_payload" if is_user else "output_payload": {
+                "role": role,
+                "type": msg_type,
+                "routed_by": routed_by,
+                "content": msg.get("content"),
+            }
+        }
+        metadata = _distill_json_load(msg.get("metadata_json"))
+        if metadata:
+            detail["metadata"] = metadata
+        add_event({
+            "id": f"MSG_{msg.get('id')}",
+            "run_id": f"SESSION_{session_id}",
+            "event_type": "USER_MESSAGE" if is_user else "AGENT_MESSAGE",
+            "agent": "User" if is_user else (routed_by or "天韬（SkyT）"),
+            "status": status,
+            "message": msg.get("content") or "",
+            "detail_json": json.dumps(detail, ensure_ascii=False),
+            "duration_ms": 0,
+            "created_at": msg.get("created_at"),
+        })
+
+    for run in runs:
+        run_detail = {
+            "input_payload": {
+                "run_id": run.get("run_id"),
+                "session_id": session_id,
+                "requirement": run.get("requirement"),
+            },
+            "token_usage": {
+                "api_tokens": int(run.get("api_tokens") or 0),
+                "local_tokens": int(run.get("local_tokens") or 0),
+                "total_tokens": int(run.get("total_tokens") or 0),
+                "source": run.get("token_source") or "none",
+            },
+        }
+        add_event({
+            "id": f"{run.get('run_id')}_START",
+            "run_id": run.get("run_id"),
+            "event_type": "RUN_START",
+            "agent": "RunSession",
+            "status": "SUCCESS",
+            "message": f"开始执行：{run.get('requirement') or run.get('run_id')}",
+            "detail_json": json.dumps(run_detail, ensure_ascii=False),
+            "duration_ms": 0,
+            "created_at": run.get("created_at"),
+        })
+        for event in events_by_run.get(run.get("run_id"), []):
+            event = dict(event)
+            event["id"] = f"{event.get('run_id')}_{event.get('id')}"
+            add_event(event)
+        add_event({
+            "id": f"{run.get('run_id')}_END",
+            "run_id": run.get("run_id"),
+            "event_type": "RUN_END",
+            "agent": "RunSession",
+            "status": "SUCCESS" if run.get("success") else "ERROR",
+            "message": f"执行结束：{'成功' if run.get('success') else '失败或未完成'}，质量 {run.get('quality_score')}/10",
+            "detail_json": json.dumps({
+                "output_payload": {
+                    "run_id": run.get("run_id"),
+                    "success": bool(run.get("success")),
+                    "quality_score": float(run.get("quality_score") or 0),
+                },
+                "token_usage": run_detail["token_usage"],
+            }, ensure_ascii=False),
+            "duration_ms": 0,
+            "created_at": run.get("updated_at") or run.get("created_at"),
+        })
+
+    def event_sort_key(ev):
+        value = ev.get("created_at")
+        if hasattr(value, "isoformat"):
+            value = value.isoformat()
+        return (str(value or ""), ev.get("_order") or 0)
+
+    session_events.sort(key=event_sort_key)
+    for event in session_events:
+        event.pop("_order", None)
+    return session_events
+
 def get_run_events(run_id: str):
     with get_connection() as conn:
         with conn.cursor() as cursor:
@@ -833,7 +1091,7 @@ def get_report_by_id(report_id: int):
             cursor.execute("SELECT id, title, created_at, content FROM reports WHERE id=%s", (report_id,))
             return cursor.fetchone()
 
-# --- Ai Multi Agent Data Distillation ---
+# --- 天韬（SkyT） Data Distillation ---
 DISTILL_FULL_KEEP_TYPES = {"TOKEN_USAGE"}
 DISTILL_IMPORTANT_TYPES = {
     "LLM_INFERENCE",
@@ -932,7 +1190,7 @@ def _should_distill_event(event, raw_size: int) -> bool:
 
 def distill_run_data(run_id: str, distilled_summary: str = None):
     """
-    Ai Multi Agent·演进：以时间换空间。后台花少量处理时间，将长上下文、多 Agent
+    天韬（SkyT）·演进：以时间换空间。后台花少量处理时间，将长上下文、多 Agent
     产生的冗余中间日志压缩为可回放摘要，换取数据库长期轻量、可维护。
     """
     with get_connection() as conn:
@@ -970,7 +1228,7 @@ def distill_run_data(run_id: str, distilled_summary: str = None):
             
             if not distilled_summary:
                 distilled_summary = (
-                    f"Ai Multi Agent数据蒸馏完成：以时间换空间，压缩 {round(space_saved/1024, 2)}KB 冗余中间日志。"
+                    f"天韬（SkyT）数据蒸馏完成：以时间换空间，压缩 {round(space_saved/1024, 2)}KB 冗余中间日志。"
                     f" 保留核心事件类型：{', '.join(sorted(preserved_types)) or '无'}；"
                     f" 降维事件类型：{', '.join(sorted(distilled_types)) or '无'}。"
                     " 深度回放仍保留任务主线、Token、I/O 摘要、错误与关键产物。"
@@ -1008,7 +1266,7 @@ def get_skill_usage_stats():
 # --- Workflows and Agents ---
 DEFAULT_AGENT_META = {
     "AiMultiAgentCore": {
-        "name": "Ai Multi Agent 深思节点",
+        "name": "天韬（SkyT） 深思节点",
         "description": "负责复杂问题拆解、架构推理、反思校验与最终决策。",
         "color": "#b142ff",
         "icon": "brain",
@@ -1281,7 +1539,7 @@ def get_dashboard_stats():
             cursor.execute("SELECT agent, COUNT(*) as count FROM run_events GROUP BY agent ORDER BY count DESC LIMIT 10")
             events_by_agent = cursor.fetchall()
             
-            # Calculate total space saved by Ai Multi Agent distillation
+            # Calculate total space saved by 天韬（SkyT） distillation
             cursor.execute("SELECT SUM(space_saved_bytes) as total_saved FROM distilled_knowledge")
             saved_row = cursor.fetchone()
             total_saved_kb = round(float(saved_row['total_saved'] or 0) / 1024, 1)

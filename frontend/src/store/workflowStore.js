@@ -5,7 +5,7 @@ const DEFAULT_NODE_COLOR = '#4da3ff';
 
 const BUILTIN_AGENT_META = {
   AiMultiAgentCore: {
-    name: 'Ai Multi Agent 深思节点',
+    name: '天韬（SkyT） 深思节点',
     description: '负责复杂问题拆解、架构推理、反思校验与最终决策。',
     color: '#b142ff',
     icon: 'brain',
@@ -482,7 +482,7 @@ export const useWorkflowStore = create((set, get) => ({
   description: '',
   stage: 'Draft',
   tags: '',
-  author: 'Ai Multi Agent User',
+  author: '天韬（SkyT） User',
 
   nodes: [],
   edges: [],

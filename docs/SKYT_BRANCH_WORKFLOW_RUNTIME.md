@@ -1,6 +1,6 @@
 # 多分支工作流运行机制说明
 
-本文档说明 Ai Multi Agent 工作流第一版轻量动态调度能力：条件分支、else/default、loop/maxIterations 循环重试、AND/OR 汇合，以及这些动作如何进入运行历史和深度回放。
+本文档说明 天韬（SkyT） 工作流第一版轻量动态调度能力：条件分支、else/default、loop/maxIterations 循环重试、AND/OR 汇合，以及这些动作如何进入运行历史和深度回放。
 
 ## 设计目标
 
@@ -191,7 +191,7 @@ quality_score >= 80
 
 - Vue / Java Gateway 架构；
 - 它的完整动态流程引擎；
-- 与 Ai Multi Agent 当前比赛展示无关的业务模块。
+- 与 天韬（SkyT） 当前比赛展示无关的业务模块。
 
 ## 后续可扩展点
 

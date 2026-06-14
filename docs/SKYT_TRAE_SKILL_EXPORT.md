@@ -1,8 +1,8 @@
-# Ai Multi Agent Workflow Template 导出 Trec/SOLO Skill 说明
+# 天韬（SkyT） Workflow Template 导出 Trec/SOLO Skill 说明
 
 ## 目标
 
-本功能用于比赛演示：把 Ai Multi Agent 中的 Workflow Template 或当前 Workflow Editor 画布，一键转换成 Trec/SOLO 可识别的项目级 Skill 包。它的价值不是复制运行记录，而是把“多 Agent 工作流的执行方法”沉淀成 Trec/SOLO 可以读取的 `SKILL.md`。
+本功能用于比赛演示：把 天韬（SkyT） 中的 Workflow Template 或当前 Workflow Editor 画布，一键转换成 Trec/SOLO 可识别的项目级 Skill 包。它的价值不是复制运行记录，而是把“多 Agent 工作流的执行方法”沉淀成 Trec/SOLO 可以读取的 `SKILL.md`。
 
 ## 生成结构
 
@@ -23,7 +23,7 @@
 <workspace>/.agents/skills/<skill-name>/workflow.json
 ```
 
-`SKILL.md` 是给 Trec/SOLO Agent 阅读和执行的流程说明，`workflow.json` 只作为 Ai Multi Agent 原始节点结构的参考文件。
+`SKILL.md` 是给 Trec/SOLO Agent 阅读和执行的流程说明，`workflow.json` 只作为 天韬（SkyT） 原始节点结构的参考文件。
 
 ## 前端入口
 
@@ -117,7 +117,7 @@ Content-Type: application/json
 1. 打开 `/workflows`，选择 5 个比赛模板之一。
 2. 展示模板节点、GPU/API 标签、Replay 和 Report 展示重点。
 3. 点击“导出 Trec/SOLO Skill”，下载 zip。
-4. 解压后展示 `SKILL.md`，说明 Ai Multi Agent 可以把可视化工作流沉淀成外部 Agent 工具可读的 Skill。
+4. 解压后展示 `SKILL.md`，说明 天韬（SkyT） 可以把可视化工作流沉淀成外部 Agent 工具可读的 Skill。
 5. 再点击“导入 Skill 为模板”，上传刚才的 zip，展示模板可恢复到 Workflow Editor。
 6. 点击“安装到 Trec/SOLO 项目”，选择 Trec/SOLO 项目根目录，展示 `.agents/skills/<skill-name>/` 结构。
 7. 打开 Skills Store，选择一个系统技能并点击“转为工作流模板”，展示系统工具也能进入模板编排。
@@ -125,7 +125,7 @@ Content-Type: application/json
 ## 维护边界
 
 - 不要把 `.env`、数据库、运行日志、缓存、历史消息或用户隐私文件打进 Skill 包。
-- 不要把 Ai Multi Agent 内部工具实现直接复制进 Trec/SOLO Skill；本轮只导出流程说明和 `workflow.json` 参考结构。
+- 不要把 天韬（SkyT） 内部工具实现直接复制进 Trec/SOLO Skill；本轮只导出流程说明和 `workflow.json` 参考结构。
 - 不要把 Skill 写成宣传文案；它应该是 Agent 可执行的流程约束。
 - 不要在 `SKILL.md` 中暴露模型隐藏推理链，只描述可见执行步骤和安全规则。
 - 如果后续 Trec/SOLO Skill 格式变化，优先修改 `agent/trae_skill_exporter.py`，再同步本文件。

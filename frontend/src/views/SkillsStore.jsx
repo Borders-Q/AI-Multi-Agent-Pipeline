@@ -36,6 +36,8 @@ const SKILL_CATEGORY_MAP = {
 function SkillsStore({ skills, enabledSkills, setEnabledSkills, onImportSkill }) {
   const [skillTab, setSkillTab] = useState('local');
   const [marketSkills, setMarketSkills] = useState([]);
+  const [marketError, setMarketError] = useState('');
+  const [installingSkill, setInstallingSkill] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('all');
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -57,14 +59,17 @@ SCHEMA = {
   const [convertingSkill, setConvertingSkill] = useState('');
 
   const fetchMarketSkills = async () => {
+    setMarketError('');
     try {
       const res = await fetch(`${API_BASE}/api/skills/market`);
-      if (res.ok) {
-        const data = await res.json();
-        setMarketSkills(data.market_skills || []);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.detail || `HTTP ${res.status}`);
       }
+      setMarketSkills(data.market_skills || []);
     } catch (e) {
       console.log("Failed to fetch market skills:", e);
+      setMarketError(`云端应用市场同步失败：${e.message}`);
     }
   };
 
@@ -75,21 +80,29 @@ SCHEMA = {
   }, [skillTab]);
 
   const handleDownloadSkill = async (skillId) => {
+    setInstallingSkill(skillId);
     try {
       const res = await fetch(`${API_BASE}/api/skills/download`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ skill_id: skillId })
       });
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
-        alert("下载并安装成功！");
+        const credentialNote = data.skill?.credential_required && data.skill?.credential_note
+          ? `\n\n提示：${data.skill.credential_note}`
+          : '';
+        alert(`${data.message || "已从云端拉取技能！"}${credentialNote}`);
+        if (onImportSkill) await onImportSkill();
+        await fetchMarketSkills();
         setSkillTab('local');
       } else {
-        const err = await res.json();
-        alert(`安装失败: ${err.detail}`);
+        alert(`安装失败: ${data.detail || `HTTP ${res.status}`}`);
       }
     } catch (e) {
-      alert(`网络错误: ${e.message}`);
+      alert(`安装失败: ${e.message}`);
+    } finally {
+      setInstallingSkill('');
     }
   };
 
@@ -338,32 +351,102 @@ SCHEMA = {
               style={{ flex: 1 }}
             />
           </div>
+          {marketError && (
+            <div style={{
+              marginBottom: '18px',
+              padding: '12px 14px',
+              borderRadius: '12px',
+              border: '1px solid rgba(255, 120, 120, 0.35)',
+              background: 'rgba(255, 80, 80, 0.08)',
+              color: 'var(--sys-color-on-surface)'
+            }}>
+              {marketError}
+            </div>
+          )}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '24px' }}>
             {marketSkills
-              .filter(skill => skill.name.toLowerCase().includes(searchQuery.toLowerCase()) || skill.description.toLowerCase().includes(searchQuery.toLowerCase()))
-              .map((skill) => (
-                <div key={skill.id} className="card glass" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px', border: '1px dashed var(--sys-color-surface-variant)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <div style={{ fontSize: '2rem' }}>{skill.icon}</div>
-                    <div>
-                      <h3 style={{ margin: 0, color: 'var(--sys-color-on-surface)' }}>{skill.name}</h3>
-                      <span style={{ fontSize: '0.7rem', color: 'var(--sys-color-primary)', backgroundColor: 'var(--sys-color-primary-container)', padding: '2px 6px', borderRadius: '4px', display: 'inline-block', marginTop: '4px' }}>官方认证</span>
+              .filter(skill => {
+                const query = searchQuery.toLowerCase();
+                return (skill.name || '').toLowerCase().includes(query)
+                  || (skill.description || '').toLowerCase().includes(query)
+                  || (skill.category || '').toLowerCase().includes(query);
+              })
+              .map((skill) => {
+                const isInstalling = installingSkill === skill.id;
+                const isInstalled = Boolean(skill.installed);
+                return (
+                <div key={skill.id} className="card glass" style={{
+                  padding: '24px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '16px',
+                  border: isInstalled ? '1px solid rgba(110, 231, 183, 0.45)' : '1px dashed var(--sys-color-surface-variant)',
+                  boxShadow: isInstalled ? 'inset 0 0 0 1px rgba(110, 231, 183, 0.12)' : 'none'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                    <div style={{ fontSize: '2rem', lineHeight: 1 }}>{skill.icon}</div>
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <h3 style={{ margin: 0, color: 'var(--sys-color-on-surface)', wordBreak: 'break-word' }}>{skill.name}</h3>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '8px' }}>
+                        <span style={{ fontSize: '0.7rem', color: 'var(--sys-color-primary)', backgroundColor: 'var(--sys-color-primary-container)', padding: '2px 6px', borderRadius: '6px', display: 'inline-block' }}>
+                          {skill.source_label || '官方认证'}
+                        </span>
+                        {skill.category && (
+                          <span style={{ fontSize: '0.7rem', color: 'var(--sys-color-on-surface-variant)', backgroundColor: 'var(--sys-color-surface-variant)', padding: '2px 6px', borderRadius: '6px', display: 'inline-block' }}>
+                            {skill.category}
+                          </span>
+                        )}
+                        {skill.requires_network && (
+                          <span style={{ fontSize: '0.7rem', color: '#7dd3fc', backgroundColor: 'rgba(56, 189, 248, 0.14)', padding: '2px 6px', borderRadius: '6px', display: 'inline-block' }}>
+                            需联网
+                          </span>
+                        )}
+                        {skill.credential_required && (
+                          <span title={skill.credential_note || ''} style={{ fontSize: '0.7rem', color: '#fbbf24', backgroundColor: 'rgba(251, 191, 36, 0.14)', padding: '2px 6px', borderRadius: '6px', display: 'inline-block' }}>
+                            需密钥
+                          </span>
+                        )}
+                        {isInstalled && (
+                          <span style={{ fontSize: '0.7rem', color: '#86efac', backgroundColor: 'rgba(34, 197, 94, 0.14)', padding: '2px 6px', borderRadius: '6px', display: 'inline-block' }}>
+                            已拉取
+                          </span>
+                        )}
+                      </div>
+                      {skill.function_name && (
+                        <div style={{ marginTop: '8px', fontSize: '0.72rem', color: 'var(--sys-color-on-surface-variant)', fontFamily: 'monospace', opacity: 0.78 }}>
+                          {skill.function_name}
+                        </div>
+                      )}
                     </div>
                   </div>
                   <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--sys-color-on-surface-variant)', flex: 1 }}>
                     {skill.description}
                   </p>
+                  {skill.credential_note && (
+                    <div style={{ fontSize: '0.78rem', color: 'var(--sys-color-on-surface-variant)', lineHeight: 1.45, opacity: 0.86 }}>
+                      {skill.credential_note}
+                    </div>
+                  )}
                   <button
                     onClick={() => handleDownloadSkill(skill.id)}
+                    disabled={isInstalling || isInstalled}
                     className="btn-primary"
-                    style={{ padding: '8px', fontSize: '0.9rem', display: 'flex', justifyContent: 'center', gap: '8px' }}
+                    style={{
+                      padding: '8px',
+                      fontSize: '0.9rem',
+                      display: 'flex',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      opacity: isInstalled ? 0.72 : 1,
+                      cursor: isInstalling ? 'wait' : isInstalled ? 'default' : 'pointer'
+                    }}
                   >
-                    📥 从云端拉取
+                    {isInstalled ? '已拉取' : isInstalling ? '正在从云端拉取...' : '📥 从云端拉取'}
                   </button>
                 </div>
-              ))}
+              )})}
             {marketSkills.length === 0 && (
-              <p style={{ color: 'var(--sys-color-on-surface-variant)' }}>连接 Registry 中...</p>
+              <p style={{ color: 'var(--sys-color-on-surface-variant)' }}>云端应用市场正在同步...</p>
             )}
           </div>
         </div>

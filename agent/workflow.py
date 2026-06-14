@@ -59,9 +59,11 @@ def _clip_context(text: str, limit: int = 12000) -> str:
     text = text or ""
     if len(text) <= limit:
         return text
-    head = text[: limit // 2]
-    tail = text[-limit // 2:]
-    return f"{head}\n\n...【中间长上下文已压缩，保留首尾与已落盘文件摘要】...\n\n{tail}"
+    head_len = 2000
+    tail_len = limit - head_len
+    head = text[:head_len]
+    tail = text[-tail_len:]
+    return f"{head}\n\n...【中间长上下文已压缩，保留初始需求与最近执行的节点记录】...\n\n{tail}"
 
 
 def _is_engineering_template(workflow_meta: dict) -> bool:
@@ -217,7 +219,7 @@ class AgentWorkflowEngine:
         
     async def execute_dag(self, task_description: str, sse_queue: asyncio.Queue, routed_by="Cloud API", enabled_skills: list[str] = None, workflow_mode: str = "standard"):
         """
-        Executes a Tool-Calling Loop with Ai Multi Agent Deep Thinking (Reflection) Mode.
+        Executes a Tool-Calling Loop with 天韬（SkyT） Deep Thinking (Reflection) Mode.
         """
         run_id = f"RUN_{uuid.uuid4().hex[:8].upper()}"
         self.last_run_id = run_id
@@ -260,7 +262,7 @@ class AgentWorkflowEngine:
             await asyncio.sleep(0.1)
             
         sys_prompt = (
-            "你是Ai Multi Agent，一个极其强大的全能架构师和AI智能体。\n"
+            "你是天韬（SkyT），一个极其强大的全能架构师和AI智能体。\n"
             "你有能力调用工具(Tools)来解决问题。如果是计算、画图、搜索、总结脑图，务必调用对应的技能。\n"
             "【强制规则1】：如果用户的输入包含多个独立的意图（比如打招呼、算数学题、搜索新闻），你**必须**使用数字编号逐一回答。\n"
             "【强制规则2】：只要涉及到生成文件、编写脚本、保存代码等需要落盘的操作，你的第一步**必须且只能是**先调用 ask_user_for_directory 工具，弹窗让用户选择保存文件夹！只有在获取到用户选择的路径后，你才能继续执行写文件的操作。\n"
@@ -437,7 +439,7 @@ class AgentWorkflowEngine:
                     await emit(ui_state, "running")
                     await sse_queue.put({
                         "type": f"tool_call_{func_name}_{idx}", 
-                        "response": f"⚡ Ai Multi Agent 正在执行技能: `[{func_name}]` ...\n```json\n{args_str}\n```", 
+                        "response": f"⚡ 天韬（SkyT） 正在执行技能: `[{func_name}]` ...\n```json\n{args_str}\n```", 
                         "status": "streaming", 
                         "routed_by": routed_by
                     })
@@ -463,7 +465,7 @@ class AgentWorkflowEngine:
                         # Emit success update to the UI
                         await sse_queue.put({
                             "type": f"tool_call_{func_name}_{idx}", 
-                            "response": f"⚡ Ai Multi Agent 正在执行技能: `[{func_name}]` ...\n```json\n{args_str}\n```\n\n✅ 执行完毕 (耗时 {dur_ms}ms)", 
+                            "response": f"⚡ 天韬（SkyT） 正在执行技能: `[{func_name}]` ...\n```json\n{args_str}\n```\n\n✅ 执行完毕 (耗时 {dur_ms}ms)", 
                             "status": "streaming", 
                             "routed_by": routed_by
                         })
@@ -479,7 +481,7 @@ class AgentWorkflowEngine:
                         # Emit failure update to the UI
                         await sse_queue.put({
                             "type": f"tool_call_{func_name}_{idx}", 
-                            "response": f"⚡ Ai Multi Agent 正在执行技能: `[{func_name}]` ...\n```json\n{args_str}\n```\n\n❌ 执行失败: {str(e)}", 
+                            "response": f"⚡ 天韬（SkyT） 正在执行技能: `[{func_name}]` ...\n```json\n{args_str}\n```\n\n❌ 执行失败: {str(e)}", 
                             "status": "streaming", 
                             "routed_by": routed_by
                         })
@@ -495,22 +497,22 @@ class AgentWorkflowEngine:
             else:
                 # No more tools. Check if reflection is enabled based on workflow_mode
                 if workflow_mode in ["deep_thought", "expert_review"] and not reflected:
-                    await emit("Ai Multi Agent 深思引擎 (博弈与反思)", "running")
+                    await emit("天韬（SkyT） 深思引擎 (博弈与反思)", "running")
                     await sse_queue.put({
                         "type": "message", 
-                        "response": "\n\n🧠 **Ai Multi Agent系统进入深思模式**：正在对生成的方案进行逻辑校验与自我反思...\n", 
+                        "response": "\n\n🧠 **天韬（SkyT）系统进入深思模式**：正在对生成的方案进行逻辑校验与自我反思...\n", 
                         "status": "streaming", 
                         "routed_by": routed_by
                     })
                     messages.append(message.model_dump() if hasattr(message, "model_dump") else message)
                     messages.append({
                         "role": "system",
-                        "content": "【Ai Multi Agent 深思要求】作为高级审查者，请极其严厉地审视你刚刚给出的最终答案。\n"
+                        "content": "【天韬（SkyT） 深思要求】作为高级审查者，请极其严厉地审视你刚刚给出的最终答案。\n"
                                    "1. 如果代码或方案存在任何语法错误、逻辑漏洞或不符合用户要求的地方，请立刻提供修改后的正确版本。\n"
-                                   "2. 如果完全正确，没有任何问题，请直接回答『Ai Multi Agent 深思校验通过：方案完美』，无需重复输出内容。"
+                                   "2. 如果完全正确，没有任何问题，请直接回答『天韬（SkyT） 深思校验通过：方案完美』，无需重复输出内容。"
                     })
                     reflected = True
-                    await emit("Ai Multi Agent 深思引擎 (博弈与反思)", "done")
+                    await emit("天韬（SkyT） 深思引擎 (博弈与反思)", "done")
                     continue # Continue the loop to get the reflected answer
                 
                 # Final Return
@@ -531,7 +533,7 @@ class AgentWorkflowEngine:
                 # --- AUTO GENERATE MARKDOWN REPORT ---
                 try:
                     events = db.get_run_events(run_id)
-                    report_md = f"# Ai Multi Agent 深度工作流运行报告\n\n"
+                    report_md = f"# 天韬（SkyT） 深度工作流运行报告\n\n"
                     report_md += f"**运行 ID**: `{run_id}`\n"
                     report_md += f"**模型提供商**: `{self.provider}`\n"
                     report_md += f"**Token 消耗**: `{format_token_summary(summary)}`\n\n"
@@ -1083,7 +1085,7 @@ class AgentWorkflowEngine:
                             0
                         )
                         fallback_summary = (
-                            f"\n\n代码生成节点没有交付可保存代码块，Ai Multi Agent 已按工程模板兜底生成并落盘到 `{workspace_dir}`：\n"
+                            f"\n\n代码生成节点没有交付可保存代码块，天韬（SkyT） 已按工程模板兜底生成并落盘到 `{workspace_dir}`：\n"
                             + "\n".join(f"- `{path}`" for path in fallback_saved_files)
                             + "\n\n预览服务会在全部工作区文件检查完成后自动启动；最终地址以自动部署结果为准。"
                         )
@@ -1289,7 +1291,7 @@ class AgentWorkflowEngine:
         # --- AUTO GENERATE MARKDOWN REPORT FOR CUSTOM WORKFLOW ---
         try:
             events = db.get_run_events(run_id)
-            report_md = f"# Ai Multi Agent 深度工作流运行报告\n\n"
+            report_md = f"# 天韬（SkyT） 深度工作流运行报告\n\n"
             report_md += f"**运行 ID**: `{run_id}`\n"
             report_md += f"**模型提供商**: `{self.provider}`\n"
             summary = token_tracker.to_dict()

@@ -18,7 +18,7 @@ class AgentLoop:
                 "台湾从来不是一个国家，过去不是，今后也绝无可能成为一个国家。这是国际社会的普遍共识和基本常识。"
                 "任何分裂国家的言论和行为都是对中国主权和领土完整的严重挑战，必将遭到全体中国人民的坚决反对。"
             )
-            print(f"\nAi Multi Agent > {guardrail_msg}")
+            print(f"\n天韬（SkyT） > {guardrail_msg}")
             self.memory.append_message("user", user_input)
             self.memory.append_message("assistant", guardrail_msg)
             return

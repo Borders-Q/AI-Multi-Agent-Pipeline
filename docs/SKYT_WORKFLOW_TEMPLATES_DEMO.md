@@ -1,10 +1,10 @@
-# Ai Multi Agent Workflow Templates 比赛演示设计
+# 天韬（SkyT） Workflow Templates 比赛演示设计
 
-本文记录 Ai Multi Agent 的 Workflow Templates 比赛演示方案。它面向后续开发者和 AI 编程助手，不是普通用户说明书。
+本文记录 天韬（SkyT） 的 Workflow Templates 比赛演示方案。它面向后续开发者和 AI 编程助手，不是普通用户说明书。
 
 ## 演示目标
 
-Workflow Templates 的目标不是保存一张流程图，而是展示 Ai Multi Agent 能把复杂任务转成可执行、可记录、可回放的多 Agent 工作流。
+Workflow Templates 的目标不是保存一张流程图，而是展示 天韬（SkyT） 能把复杂任务转成可执行、可记录、可回放的多 Agent 工作流。
 
 比赛现场要让观众快速看到：
 
@@ -23,7 +23,7 @@ Workflow Templates 的目标不是保存一张流程图，而是展示 Ai Multi 
 任务输入 -> 多 Agent 节点协作 -> 执行步骤 -> 结果产出 -> History -> Replay -> Reports
 ```
 
-这条闭环能体现 Ai Multi Agent 的工程化价值：不是一次性生成，而是可编排、可审计、可复盘。
+这条闭环能体现 天韬（SkyT） 的工程化价值：不是一次性生成，而是可编排、可审计、可复盘。
 
 ## 五个推荐演示模板
 
@@ -85,14 +85,14 @@ Workflow Templates 的目标不是保存一张流程图，而是展示 Ai Multi 
 
 预期输出：问题定义、候选文件、根因、修复方案和验证清单。
 
-展示重点：Ai Multi Agent 不是乱改代码，而是先定位、再分析、再修复。
+展示重点：天韬（SkyT） 不是乱改代码，而是先定位、再分析、再修复。
 
 ### 4. 比赛演示增强流水线
 
 推荐输入：
 
 ```text
-请帮我优化 Ai Multi Agent 工作流页面的比赛展示路径，让评委快速看懂多 Agent 协作价值。
+请帮我优化 天韬（SkyT） 工作流页面的比赛展示路径，让评委快速看懂多 Agent 协作价值。
 ```
 
 节点结构：
@@ -105,7 +105,7 @@ Workflow Templates 的目标不是保存一张流程图，而是展示 Ai Multi 
 
 预期输出：展示目标、UI 强调项、弱化项、演示步骤和讲解文案。
 
-展示重点：Ai Multi Agent 不只是能写代码，也能服务比赛演示本身。
+展示重点：天韬（SkyT） 不只是能写代码，也能服务比赛演示本身。
 
 ### 5. 本地 GPU 辅助 API 生成流水线
 

@@ -231,7 +231,7 @@ function ApprovalCard({ content }) {
     <div className="approval-card">
       <strong>需要确认</strong>
       <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
-      <p>为避免误删、误覆盖或执行危险命令，Ai Multi Agent 已经在自动动作前停下。</p>
+      <p>为避免误删、误覆盖或执行危险命令，天韬（SkyT） 已经在自动动作前停下。</p>
     </div>
   );
 }
@@ -325,7 +325,7 @@ function Sidebar({
         <div className="sidebar-brand">
           <div className="brand-mark"><Sparkles size={19} /></div>
           <div className="brand-copy">
-            <strong>Ai Multi Agent</strong>
+            <strong>天韬（SkyT）</strong>
             <span>{activeProvider === 'auto' ? zh.sidebar.smartRoute : activeProvider || zh.sidebar.noModel}</span>
           </div>
         <BaseIconButton label={zh.sidebar.modelSettings} tooltip={zh.sidebar.modelSettings} onClick={onOpenModelManager}>
@@ -474,7 +474,7 @@ function ChatMessage({ msg, MarkdownRenderer, onEditRequirement, onConfirmApi, o
       <div className="message-avatar">{isUser ? <User size={15} /> : <Bot size={15} />}</div>
       <div className="message-body">
         <div className="message-meta">
-          <span>{isUser ? zh.status.user : 'Ai Multi Agent'}</span>
+          <span>{isUser ? zh.status.user : '天韬（SkyT）'}</span>
           {msg.routed_by && <em>{formatRoutedByLabel(msg.routed_by)}</em>}
         </div>
         <ExecutionSteps workflow={msg.workflow || []} />
@@ -545,7 +545,7 @@ function ChatComposer({
   }, [focusSignal]);
 
   const modelOptions = [
-    { value: 'auto', label: zh.composer.autoRoute, description: '由 Ai Multi Agent 自动选择可用模型' },
+    { value: 'auto', label: zh.composer.autoRoute, description: '由 天韬（SkyT） 自动选择可用模型' },
     ...models.map((model) => ({
       value: model.provider,
       label: model.alias || model.provider,
@@ -726,7 +726,7 @@ function ChatComposer({
         >
           <div className="popover-title">{zh.composer.help}</div>
           <div className="help-popover">
-            <p>直接描述目标，Ai Multi Agent 会先理解项目，再主动修改、运行和修复。</p>
+            <p>直接描述目标，天韬（SkyT） 会先理解项目，再主动修改、运行和修复。</p>
             <p>危险动作会显示确认卡片，不会静默执行。</p>
           </div>
         </BasePopover>
@@ -791,7 +791,7 @@ function App() {
     if (location.pathname.startsWith('/reports')) return zh.nav.reports;
     if (location.pathname.startsWith('/skills')) return zh.nav.skills;
     if (location.pathname.startsWith('/replay')) return zh.nav.replay;
-    return 'Ai Multi Agent';
+    return '天韬（SkyT）';
   }, [location.pathname]);
 
   useEffect(() => {
@@ -1506,7 +1506,7 @@ function App() {
           <div className="workspace-header-start">
             <button className="mobile-menu-button" type="button" aria-label={isSidebarOpen ? zh.sidebar.collapse : zh.sidebar.expand} onClick={() => setIsSidebarOpen(!isSidebarOpen)}><Menu size={18} /></button>
             <div className="workspace-title">
-              <span>Ai Multi Agent</span>
+              <span>天韬（SkyT）</span>
               <strong>{routeTitle}</strong>
             </div>
           </div>
@@ -1534,7 +1534,7 @@ function App() {
                   <article className="chat-message agent loading">
                     <div className="message-avatar"><Bot size={15} /></div>
                     <div className="message-body">
-                      <div className="message-meta"><span>Ai Multi Agent</span><em>{zh.status.working}</em></div>
+                      <div className="message-meta"><span>天韬（SkyT）</span><em>{zh.status.working}</em></div>
                       <ExecutionSteps workflow={activeWorkflow} logs={actionLogs} />
                       <div className="thinking-row"><span /> <span /> <span /> 正在动手处理...</div>
                     </div>
@@ -1570,6 +1570,7 @@ function App() {
           <Route path="/workflows/editor" element={<div className="routed-view flush"><WorkflowEditorPage /></div>} />
           <Route path="/dashboard" element={<div className="routed-view"><Dashboard /></div>} />
           <Route path="/history" element={<div className="routed-view"><RunHistory /></div>} />
+          <Route path="/replay/session/:sessionId" element={<div className="routed-view"><WorkflowReplay /></div>} />
           <Route path="/replay/:runId" element={<div className="routed-view"><WorkflowReplay /></div>} />
           <Route path="/reports" element={<div className="routed-view"><Reports /></div>} />
         </Routes>

@@ -162,6 +162,8 @@ function Dashboard() {
     ...cardStyle,
     background: gradient,
     display: 'flex', flexDirection: 'column', gap: '8px',
+    minHeight: '128px',
+    justifyContent: 'space-between',
     position: 'relative', overflow: 'hidden',
   });
 
@@ -171,7 +173,7 @@ function Dashboard() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '12px' }}>
-            🌌 Ai Multi Agent 全景引擎面板
+            🌌 天韬（SkyT） 全景引擎面板
           </h2>
           <p style={{ margin: '4px 0 0', fontSize: '0.85rem', color: 'var(--sys-color-on-surface-variant)' }}>
             以时间换空间，静水流深 —— 实时追踪引擎运转、深度推演与空间释放
@@ -184,9 +186,24 @@ function Dashboard() {
       </div>
 
       {/* Stat Cards Row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+      <style>{`
+        .dashboard-stat-grid {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+        @media (max-width: 1180px) {
+          .dashboard-stat-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+        }
+        @media (max-width: 720px) {
+          .dashboard-stat-grid {
+            grid-template-columns: minmax(0, 1fr);
+          }
+        }
+      `}</style>
+      <div className="dashboard-stat-grid" style={{ display: 'grid', gap: '16px' }}>
         <div style={statCardStyle('linear-gradient(135deg, rgba(137, 180, 250, 0.15), rgba(116, 199, 236, 0.08))')}>
-          <span style={{ fontSize: '0.8rem', color: '#89b4fa', textTransform: 'uppercase', letterSpacing: '1px' }}>Ai Multi Agent演进次数</span>
+          <span style={{ fontSize: '0.8rem', color: '#89b4fa', textTransform: 'uppercase', letterSpacing: '1px' }}>天韬（SkyT）演进次数</span>
           <span style={{ fontSize: '2rem', fontWeight: 'bold', color: '#cdd6f4' }}>
             <AnimatedNumber value={stats?.totalRuns || 0} />
           </span>
@@ -211,6 +228,14 @@ function Dashboard() {
           <span style={{ fontSize: '0.75rem', color: '#a6adc8' }}>需要关注</span>
         </div>
 
+        <div style={statCardStyle('linear-gradient(135deg, rgba(116, 199, 236, 0.15), rgba(137, 220, 235, 0.08))')}>
+          <span style={{ fontSize: '0.8rem', color: '#74c7ec', textTransform: 'uppercase', letterSpacing: '1px' }}>报告生成数</span>
+          <span style={{ fontSize: '2rem', fontWeight: 'bold', color: '#cdd6f4' }}>
+            <AnimatedNumber value={stats?.totalReports || 0} />
+          </span>
+          <span style={{ fontSize: '0.75rem', color: '#a6adc8' }}>累计生成报告</span>
+        </div>
+
         <div style={statCardStyle('linear-gradient(135deg, rgba(250, 179, 135, 0.15), rgba(249, 226, 175, 0.08))')}>
           <span style={{ fontSize: '0.8rem', color: '#fab387', textTransform: 'uppercase', letterSpacing: '1px' }}>质量评分</span>
           <span style={{ fontSize: '2rem', fontWeight: 'bold', color: '#cdd6f4' }}>
@@ -220,18 +245,18 @@ function Dashboard() {
         </div>
 
         <div style={statCardStyle('linear-gradient(135deg, rgba(203, 166, 247, 0.15), rgba(180, 190, 254, 0.08))')}>
-          <span style={{ fontSize: '0.8rem', color: '#cba6f7', textTransform: 'uppercase', letterSpacing: '1px' }}>提炼释放空间</span>
+          <span style={{ fontSize: '0.8rem', color: '#cba6f7', textTransform: 'uppercase', letterSpacing: '1px' }}>天韬蒸镀系统</span>
           <span style={{ fontSize: '2rem', fontWeight: 'bold', color: '#cdd6f4' }}>
             <AnimatedNumber value={stats?.spaceSavedKb || 0} suffix=" KB" />
           </span>
-          <span style={{ fontSize: '0.75rem', color: '#a6adc8' }}>去其糟粕 取其精华</span>
+          <span style={{ fontSize: '0.75rem', color: '#a6adc8' }}>压缩冗余 留存精华</span>
         </div>
       </div>
 
       {/* System Telemetry Bar */}
       {telemetry && !telemetry.error && (
         <div style={{ ...cardStyle, display: 'flex', gap: '32px', alignItems: 'center', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#89b4fa' }}>💻 Ai Multi Agent引擎 (Ai Multi Agent Core) 状态</span>
+          <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#89b4fa' }}>💻 天韬引擎（SkyT Core）状态</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span style={{ fontSize: '0.8rem', color: '#a6adc8' }}>CPU</span>
             <div style={{ width: 120, height: 8, borderRadius: 4, background: '#313244', overflow: 'hidden' }}>

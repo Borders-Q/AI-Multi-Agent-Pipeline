@@ -1,5 +1,5 @@
 export const zh = {
-  welcome: '欢迎使用 Ai Multi Agent 工作台。你可以直接描述任务，我会主动阅读项目、修改代码并运行验证；遇到删除、覆盖关键文件、工作区外写入等高风险动作时会先请求确认。',
+  welcome: '欢迎使用 天韬（SkyT） 工作台。你可以直接描述任务，我会主动阅读项目、修改代码并运行验证；遇到删除、覆盖关键文件、工作区外写入等高风险动作时会先请求确认。',
   nav: {
     chat: '智能对话',
     dashboard: '数据看板',
@@ -59,7 +59,7 @@ export const zh = {
     clearTitle: '清空当前对话？',
     clearDescription: '这会删除当前会话记录，并开启一个新对话。',
     deleteTitle: '删除这个会话？',
-    deleteDescription: '会话消息和历史入口会被移除；如果它正被打开，Ai Multi Agent 会自动切换到新对话。',
+    deleteDescription: '会话消息和历史入口会被移除；如果它正被打开，天韬（SkyT） 会自动切换到新对话。',
     cancel: '取消',
     clear: '清空',
     delete: '删除'

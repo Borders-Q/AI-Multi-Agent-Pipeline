@@ -8,13 +8,13 @@ replacements = {
     1281: '                  系统将根据 API Key 的格式自动识别所属平台 (支持 OpenAI, Gemini, DeepSeek, Zhipu 等)。                </p>'
 }
 
-with codecs.open('g:/Ai Multi Agent/frontend/src/App.jsx', 'r', 'utf-8', errors='ignore') as f:
+with codecs.open('g:/AI Mu/frontend/src/App.jsx', 'r', 'utf-8', errors='ignore') as f:
     lines = f.readlines()
 
 for num, text in replacements.items():
     lines[num-1] = text + '\n'
 
-with codecs.open('g:/Ai Multi Agent/frontend/src/App.jsx', 'w', 'utf-8') as f:
+with codecs.open('g:/AI Mu/frontend/src/App.jsx', 'w', 'utf-8') as f:
     f.writelines(lines)
     
 print('Restored missing JSX closing tags!')

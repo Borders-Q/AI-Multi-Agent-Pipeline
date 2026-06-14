@@ -1,6 +1,6 @@
 # 后续生成逻辑说明
 
-本文给后续 AI 或开发者使用，目标是避免每次修改都重新阅读整个项目，也避免把 Ai Multi Agent 改偏。
+本文给后续 AI 或开发者使用，目标是避免每次修改都重新阅读整个项目，也避免把 天韬（SkyT） 改偏。
 
 ## 修改前阅读顺序
 
@@ -17,7 +17,7 @@
 
 - 先理解现有结构，再做小范围修改。
 - 不重新开发整个项目。
-- 不把 Ai Multi Agent 改造成参考项目 `D:\xjb-test` 的架构。
+- 不把 天韬（SkyT） 改造成参考项目 `D:\xjb-test` 的架构。
 - 不为了比赛展示堆无关功能。
 - 改 UI 时保持 Codex 风格工作台，不做独立营销首页。
 - 改后端时保持 `server.py` 为接口入口，复杂 Agent 逻辑放 `agent/`。
@@ -89,14 +89,14 @@
 常规前端修改：
 
 ```powershell
-cd E:\比赛\Ai Multi Agent\frontend
+cd E:\比赛\AI Mu\frontend
 npm run build
 ```
 
 常规后端修改：
 
 ```powershell
-cd E:\比赛\Ai Multi Agent
+cd E:\比赛\AI Mu
 python -m py_compile server.py db.py agent\workflow.py agent\router.py agent\llm_client.py agent\tools\fs_tools.py
 ```
 

@@ -293,7 +293,9 @@ function TokenUsagePanel({ event }) {
 }
 
 export default function WorkflowReplay() {
-  const { runId } = useParams();
+  const { runId, sessionId } = useParams();
+  const isSessionReplay = Boolean(sessionId);
+  const targetId = sessionId || runId;
   const [events, setEvents] = useState([]);
   const [playing, setPlaying] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(-1);
@@ -307,17 +309,23 @@ export default function WorkflowReplay() {
   const scrollRef = useRef(null);
 
   useEffect(() => {
-    fetch(`${API_BASE}/api/runs/${runId}/events`)
+    const url = isSessionReplay
+      ? `${API_BASE}/api/runs/sessions/${encodeURIComponent(sessionId)}/events`
+      : `${API_BASE}/api/runs/${encodeURIComponent(runId)}/events`;
+    fetch(url)
       .then(res => res.json())
       .then(data => {
         setEvents(data.events || []);
         if (data.events && data.events.length > 0) {
           setCurrentIndex(data.events.length - 1);
           setSelectedEvent(data.events[data.events.length - 1]);
+        } else {
+          setCurrentIndex(-1);
+          setSelectedEvent(null);
         }
       })
       .catch(e => console.error("Failed to load run events", e));
-  }, [runId]);
+  }, [runId, sessionId, isSessionReplay]);
 
   useEffect(() => {
     let timer;
@@ -360,7 +368,7 @@ export default function WorkflowReplay() {
   const filteredEvents = events.filter(ev => {
     if (filterAgent !== 'ALL' && ev.agent !== filterAgent) return false;
     if (filterStatus !== 'ALL' && ev.status !== filterStatus) return false;
-    if (searchQuery && !ev.message.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+    if (searchQuery && !(ev.message || '').toLowerCase().includes(searchQuery.toLowerCase())) return false;
     return true;
   });
 
@@ -377,10 +385,10 @@ export default function WorkflowReplay() {
           </Link>
           <div>
             <h1 style={{ fontSize: '1.5rem', margin: 0, display: 'flex', alignItems: 'center', gap: '8px', color: '#cdd6f4' }}>
-              细粒度工作流回放
+              {isSessionReplay ? '历史会话回放' : '细粒度工作流回放'}
             </h1>
             <p style={{ margin: 0, fontSize: '0.85rem', color: '#89b4fa', fontFamily: 'monospace', marginTop: '4px' }}>
-              TARGET_ID: {runId}
+              {isSessionReplay ? 'SESSION_ID' : 'TARGET_ID'}: {targetId}
             </p>
           </div>
         </div>

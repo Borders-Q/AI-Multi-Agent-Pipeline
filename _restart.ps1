@@ -4,7 +4,7 @@
 
 
 
-$Host.UI.RawUI.WindowTitle = "Ai Multi Agent 系统 - 一键重启"
+$Host.UI.RawUI.WindowTitle = "天韬（SkyT） 系统 - 一键重启"
 
 $baseDir = $PSScriptRoot
 
@@ -12,7 +12,7 @@ $baseDir = $PSScriptRoot
 
 Write-Host "==================================="
 
-Write-Host "       Ai Multi Agent 系统 - 一键重启"
+Write-Host "       天韬（SkyT） 系统 - 一键重启"
 
 Write-Host "==================================="
 
@@ -36,9 +36,9 @@ Stop-Process -Name "node" -Force -ErrorAction SilentlyContinue
 
 Write-Host "正在关闭残留的专属网页..."
 
-# 1. 安全且精确地关闭浏览器中的 Ai Multi Agent 窗口（绝不会关闭您的 IDE 或其他不相干窗口）
+# 1. 安全且精确地关闭浏览器中的 天韬（SkyT） 窗口（绝不会关闭您的 IDE 或其他不相干窗口）
 
-Get-Process msedge, chrome -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowTitle -like '*Ai Multi Agent*' } | ForEach-Object {
+Get-Process msedge, chrome -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowTitle -like '*天韬（SkyT）*' } | ForEach-Object {
 
     $_.CloseMainWindow() | Out-Null
 
@@ -118,7 +118,7 @@ Start-Process -FilePath "msedge" -ArgumentList "--app=http://127.0.0.1:5173", "-
 
 Write-Host "==================================="
 
-Write-Host "  Ai Multi Agent 系统已成功重启"
+Write-Host "  天韬（SkyT） 系统已成功重启"
 
 Write-Host "==================================="
 

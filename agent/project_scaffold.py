@@ -366,7 +366,7 @@ const editableFields: string[] = {js_fields};
 
     readme = f'''# {title}
 
-这是 Ai Multi Agent 工程工作流兜底生成的 Flask + SQLite 演示项目。
+这是 天韬（SkyT） 工程工作流兜底生成的 Flask + SQLite 演示项目。
 
 ## 功能
 
@@ -681,7 +681,7 @@ canvas {
 
     readme = '''# 贪吃蛇小游戏
 
-这是 Ai Multi Agent 工程工作流兜底生成的 Flask + HTML Canvas 贪吃蛇项目。
+这是 天韬（SkyT） 工程工作流兜底生成的 Flask + HTML Canvas 贪吃蛇项目。
 
 ## 功能
 
@@ -846,7 +846,7 @@ def _seed_values(domain: dict) -> list[object]:
         elif name == "name":
             values.append(f"示例{domain['entity_cn']}")
         elif name == "author":
-            values.append("Ai Multi Agent")
+            values.append("天韬（SkyT）")
         elif name == "category":
             values.append("默认分类")
         elif name == "isbn":

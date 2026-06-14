@@ -125,10 +125,10 @@ def _ordered_nodes(workflow: dict) -> list:
 def build_skill_package(title: str, description: str, workflow_json: Any, template_id: str = "") -> dict:
     workflow = _load_workflow(workflow_json)
     meta = workflow.get("meta") or {}
-    final_title = _text(title or meta.get("template_name") or meta.get("title"), "Ai Multi Agent 工作流 Skill")
+    final_title = _text(title or meta.get("template_name") or meta.get("title"), "天韬（SkyT） 工作流 Skill")
     final_description = _text(
         description or meta.get("template_description") or meta.get("description") or meta.get("demo_scene"),
-        "用于在 Trec/SOLO 中复用 Ai Multi Agent 工作流模板的项目级 Skill。",
+        "用于在 Trec/SOLO 中复用 天韬（SkyT） 工作流模板的项目级 Skill。",
     )
     skill_name = _slugify(final_title, template_id or _text(meta.get("template_id")))
     nodes = _ordered_nodes(workflow)
@@ -170,7 +170,7 @@ def build_skill_package(title: str, description: str, workflow_json: Any, templa
         "",
         f"# {final_title}",
         "",
-        "这是由 Ai Multi Agent Workflow Template 一键导出的 Trec/SOLO 项目级 Skill。它用于把比赛演示中的多 Agent 工作流固化为 Trec/SOLO 可复用的执行流程。",
+        "这是由 天韬（SkyT） Workflow Template 一键导出的 Trec/SOLO 项目级 Skill。它用于把比赛演示中的多 Agent 工作流固化为 Trec/SOLO 可复用的执行流程。",
         "",
         "## 适用场景",
         _text(meta.get("demo_scene"), final_description),
@@ -207,7 +207,7 @@ def build_skill_package(title: str, description: str, workflow_json: Any, templa
         "- 如果信息不足，先提出最少量关键确认问题，再继续执行。",
         "",
         "## 附带参考",
-        "- `workflow.json` 保存了原始 Ai Multi Agent 工作流结构，可用于回看节点和连线。",
+        "- `workflow.json` 保存了原始 天韬（SkyT） 工作流结构，可用于回看节点和连线。",
         "",
     ])
 

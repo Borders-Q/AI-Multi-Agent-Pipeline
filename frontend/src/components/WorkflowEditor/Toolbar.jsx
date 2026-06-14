@@ -104,7 +104,7 @@ export default function Toolbar() {
           description: formDesc,
           stage: formStage || 'Draft',
           tags: formTags,
-          author: 'Ai Multi Agent User',
+          author: '天韬（SkyT） User',
           workflow_json: json,
         }),
       });
@@ -127,7 +127,7 @@ export default function Toolbar() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title: title || 'Ai Multi Agent Workflow Skill',
+          title: title || '天韬（SkyT） Workflow Skill',
           description,
           workflow_json: workflowJson,
           mode: 'download',

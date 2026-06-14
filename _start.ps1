@@ -4,7 +4,7 @@
 
 
 
-$Host.UI.RawUI.WindowTitle = "Ai Multi Agent 系统 - 一键启动"
+$Host.UI.RawUI.WindowTitle = "天韬（SkyT） 系统 - 一键启动"
 
 $baseDir = $PSScriptRoot
 
@@ -21,7 +21,7 @@ if (Test-Path $venvPython) {
 
 Write-Host "==================================="
 
-Write-Host "       Ai Multi Agent 系统 - 一键启动"
+Write-Host "       天韬（SkyT） 系统 - 一键启动"
 
 Write-Host "==================================="
 
@@ -79,7 +79,7 @@ Start-Process -FilePath "msedge" -ArgumentList "--app=http://127.0.0.1:5173", "-
 
 Write-Host "==================================="
 
-Write-Host "  Ai Multi Agent 系统已成功启动"
+Write-Host "  天韬（SkyT） 系统已成功启动"
 
 Write-Host "==================================="
 

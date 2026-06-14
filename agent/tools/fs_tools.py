@@ -26,7 +26,7 @@ def _approval_required(reason: str, payload: str) -> str:
         "[APPROVAL_REQUIRED]\n"
         f"Reason: {reason}\n"
         f"Payload: {payload}\n"
-        "Ai Multi Agent stopped before executing this high-risk automatic action. Ask the user to confirm explicitly."
+        "天韬（SkyT） stopped before executing this high-risk automatic action. Ask the user to confirm explicitly."
     )
 
 def _is_protected_path(path: str) -> bool:
@@ -92,7 +92,7 @@ def write_file(path: str, content: str) -> str:
                     # Run pip install synchronously in a visible CMD window so the user sees the progress
                     try:
                         import sys
-                        cmd_str = f'start /wait cmd.exe /c "title Ai Multi Agent Auto-Installer: Installing Dependencies && echo [Ai Multi Agent] Automatically installing missing dependencies... && echo. && "{sys.executable}" -m pip install {" ".join(external)} -i https://pypi.tuna.tsinghua.edu.cn/simple && echo. && echo [Ai Multi Agent] Installation Complete! && timeout /t 2"'
+                        cmd_str = f'start /wait cmd.exe /c "title 天韬（SkyT） Auto-Installer: Installing Dependencies && echo [天韬（SkyT）] Automatically installing missing dependencies... && echo. && "{sys.executable}" -m pip install {" ".join(external)} -i https://pypi.tuna.tsinghua.edu.cn/simple && echo. && echo [天韬（SkyT）] Installation Complete! && timeout /t 2"'
                         subprocess.run(cmd_str, shell=True)
                     except:
                         pass
@@ -199,7 +199,7 @@ def ask_user_for_directory() -> str:
         return f"Error opening folder selection dialog: {str(e)}"
 
 def import_local_skill(path: str) -> str:
-    """Read a python file and import it into Ai Multi Agent as a new skill dynamically."""
+    """Read a python file and import it into 天韬（SkyT） as a new skill dynamically."""
     try:
         abs_path = _resolve_path(path)
         if not os.path.exists(abs_path):
@@ -309,7 +309,7 @@ FS_TOOLS_SCHEMA = [
         "type": "function",
         "function": {
             "name": "import_local_skill",
-            "description": "Dynamically load a python file and import it into Ai Multi Agent as a new skill (Tool). The python file must contain a function and a SCHEMA dict.",
+            "description": "Dynamically load a python file and import it into 天韬（SkyT） as a new skill (Tool). The python file must contain a function and a SCHEMA dict.",
             "parameters": {
                 "type": "object",
                 "properties": {

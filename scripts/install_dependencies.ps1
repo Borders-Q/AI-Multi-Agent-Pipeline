@@ -259,7 +259,7 @@ function Get-PreferredPython {
     throw "No usable Python 3.9-3.13 was found. Run without -DryRun to bootstrap local Python from the Tsinghua mirror."
 }
 
-Write-Title "Ai Multi Agent dependency installer"
+Write-Title "天韬（SkyT） dependency installer"
 Write-Host "Project root: $ProjectRoot"
 Write-Host "pip index: $PipIndexUrl"
 Write-Host "npm registry: $NpmRegistry"

@@ -21,5 +21,5 @@ def get_todo_tool():
 def handle_update_todos(todos: list):
     # In a full implementation, this could send a websocket message to the frontend,
     # or write to a memory file that the frontend polls.
-    # For now, Ai Multi Agent extracts todos directly from the <PLAN> tag via SSE.
+    # For now, 天韬（SkyT） extracts todos directly from the <PLAN> tag via SSE.
     return "Todos updated successfully."

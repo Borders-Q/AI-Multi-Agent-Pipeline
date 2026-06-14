@@ -49,7 +49,7 @@ export default function SystemTelemetry() {
       <div style={{ display: 'flex', gap: '24px', alignItems: 'center' }}>
         <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <Activity size={12} className="animate-pulse" />
-          <span>Ai Multi Agent OS [v3.0.0]</span>
+          <span>天韬（SkyT） OS [v3.0.0]</span>
         </span>
         <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <Network size={12} />

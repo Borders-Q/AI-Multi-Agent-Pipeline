@@ -3,11 +3,11 @@ import codecs
 start_ps1 = """$ErrorActionPreference = "Stop"
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
-$Host.UI.RawUI.WindowTitle = "Ai Multi Agent 系统 - 一键启动"
+$Host.UI.RawUI.WindowTitle = "天韬（SkyT） 系统 - 一键启动"
 $baseDir = $PSScriptRoot
 
 Write-Host "==================================="
-Write-Host "       Ai Multi Agent 系统 - 一键启动"
+Write-Host "       天韬（SkyT） 系统 - 一键启动"
 Write-Host "==================================="
 
 Write-Host "[1/3] 启动后端服务 (FastAPI)..." -ForegroundColor Yellow
@@ -36,7 +36,7 @@ Write-Host "正在打开浏览器..." -ForegroundColor Cyan
 Start-Process -FilePath "msedge" -ArgumentList "--app=http://127.0.0.1:5173" -ErrorAction SilentlyContinue
 
 Write-Host "==================================="
-Write-Host "  Ai Multi Agent 系统已成功启动"
+Write-Host "  天韬（SkyT） 系统已成功启动"
 Write-Host "==================================="
 Write-Host "1. 请勿关闭弹出的最小化黑色窗口，它们是系统的核心。" -ForegroundColor Magenta
 Write-Host "2. 本控制台窗口将在 3 秒后自动关闭..." -ForegroundColor Magenta
@@ -48,10 +48,10 @@ exit
 stop_ps1 = """$ErrorActionPreference = "Continue"
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
-$Host.UI.RawUI.WindowTitle = "Ai Multi Agent 系统 - 一键关闭"
+$Host.UI.RawUI.WindowTitle = "天韬（SkyT） 系统 - 一键关闭"
 
 Write-Host "==================================="
-Write-Host "       Ai Multi Agent 系统 - 一键关闭"
+Write-Host "       天韬（SkyT） 系统 - 一键关闭"
 Write-Host "==================================="
 
 Write-Host "正在关闭后台服务(端口8000, 5173, 8001)..." -ForegroundColor Yellow
@@ -61,7 +61,7 @@ Write-Host "正在清理附属残留进程..." -ForegroundColor Yellow
 Stop-Process -Name "python" -Force -ErrorAction SilentlyContinue
 Stop-Process -Name "node" -Force -ErrorAction SilentlyContinue
 
-Write-Host "正在关闭 Ai Multi Agent 专属浏览器页面..." -ForegroundColor Yellow
+Write-Host "正在关闭 天韬（SkyT） 专属浏览器页面..." -ForegroundColor Yellow
 Get-CimInstance Win32_Process -Filter "Name = 'msedge.exe'" | Where-Object { $_.CommandLine -like '*--app=http://127.0.0.1:5173*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
 
 Write-Host "===================================" -ForegroundColor Green
@@ -76,11 +76,11 @@ exit
 restart_ps1 = """$ErrorActionPreference = "Continue"
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
-$Host.UI.RawUI.WindowTitle = "Ai Multi Agent 系统 - 一键重启"
+$Host.UI.RawUI.WindowTitle = "天韬（SkyT） 系统 - 一键重启"
 $baseDir = $PSScriptRoot
 
 Write-Host "==================================="
-Write-Host "       Ai Multi Agent 系统 - 一键重启"
+Write-Host "       天韬（SkyT） 系统 - 一键重启"
 Write-Host "==================================="
 
 Write-Host "`n【第一阶段：强制清理旧服务】" -ForegroundColor Cyan
@@ -124,7 +124,7 @@ Write-Host "正在打开浏览器..." -ForegroundColor Cyan
 Start-Process -FilePath "msedge" -ArgumentList "--app=http://127.0.0.1:5173" -ErrorAction SilentlyContinue
 
 Write-Host "==================================="
-Write-Host "  Ai Multi Agent 系统已成功重启"
+Write-Host "  天韬（SkyT） 系统已成功重启"
 Write-Host "==================================="
 Write-Host "1. 请勿关闭弹出的最小化黑色窗口，它们是系统的核心。" -ForegroundColor Magenta
 Write-Host "2. 本控制台窗口将在 3 秒后自动关闭..." -ForegroundColor Magenta
@@ -133,7 +133,7 @@ Start-Sleep -Seconds 3
 exit
 """
 
-with open('e:/比赛/Ai Multi Agent/_start.ps1', 'w', encoding='utf-8-sig') as f: f.write(start_ps1)
-with open('e:/比赛/Ai Multi Agent/_stop.ps1', 'w', encoding='utf-8-sig') as f: f.write(stop_ps1)
-with open('e:/比赛/Ai Multi Agent/_restart.ps1', 'w', encoding='utf-8-sig') as f: f.write(restart_ps1)
+with open('e:/比赛/AI Mu/_start.ps1', 'w', encoding='utf-8-sig') as f: f.write(start_ps1)
+with open('e:/比赛/AI Mu/_stop.ps1', 'w', encoding='utf-8-sig') as f: f.write(stop_ps1)
+with open('e:/比赛/AI Mu/_restart.ps1', 'w', encoding='utf-8-sig') as f: f.write(restart_ps1)
 print("Done.")
