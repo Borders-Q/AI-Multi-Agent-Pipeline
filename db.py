@@ -5,6 +5,7 @@ import pymysql.cursors
 from cryptography.fernet import Fernet
 from dotenv import load_dotenv
 import threading
+from datetime import datetime, timedelta, timezone
 from contextlib import contextmanager
 
 # Load environment variables
@@ -74,6 +75,16 @@ def get_connection(use_db=True):
             
     yield _local.conn
     # Do NOT close the connection here to reuse it next time in the same thread
+
+
+def check_health():
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT 1 AS ok")
+            row = cursor.fetchone()
+            if not row or row.get("ok") != 1:
+                raise RuntimeError("database health query failed")
+    return True
 
 def _add_column_if_missing(cursor, table: str, column_sql: str):
     """Run additive migrations safely; MySQL raises 1060 when the column exists."""
@@ -588,6 +599,49 @@ def init_db():
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
+
+            # Productization schema is additive and versioned independently of
+            # the legacy seed tables above.
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS schema_migrations (
+                    version INT PRIMARY KEY,
+                    applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS tasks (
+                    task_id VARCHAR(64) PRIMARY KEY,
+                    session_id VARCHAR(64) DEFAULT NULL,
+                    run_id VARCHAR(64) DEFAULT NULL,
+                    task_type VARCHAR(100) NOT NULL,
+                    status VARCHAR(32) NOT NULL DEFAULT 'queued',
+                    attempt INT NOT NULL DEFAULT 0,
+                    max_attempts INT NOT NULL DEFAULT 3,
+                    payload_json LONGTEXT,
+                    result_json LONGTEXT,
+                    error_text TEXT,
+                    worker_id VARCHAR(100) DEFAULT NULL,
+                    lease_until DATETIME(3) DEFAULT NULL,
+                    next_attempt_at DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3),
+                    heartbeat_at DATETIME(3) DEFAULT NULL,
+                    created_at DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3),
+                    updated_at DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+                    INDEX idx_tasks_claim (status, next_attempt_at, lease_until),
+                    INDEX idx_tasks_session (session_id, created_at),
+                    INDEX idx_tasks_run (run_id, created_at)
+                )
+            """)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS task_events (
+                    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                    task_id VARCHAR(64) NOT NULL,
+                    event_type VARCHAR(32) NOT NULL,
+                    detail_json LONGTEXT,
+                    created_at DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3),
+                    INDEX idx_task_events (task_id, created_at, id)
+                )
+            """)
+            cursor.execute("INSERT IGNORE INTO schema_migrations (version) VALUES (1)")
             
             # Seed default agents if empty
             cursor.execute("SELECT COUNT(*) as count FROM agents")
@@ -846,6 +900,184 @@ def save_run_event(run_id: str, event_type: str, agent: str, status: str, messag
                 "INSERT INTO run_events (run_id, event_type, agent, status, message, detail_json, duration_ms) VALUES (%s, %s, %s, %s, %s, %s, %s)",
                 (run_id, event_type, agent, status, message, detail_json, duration_ms)
             )
+
+
+def _task_json(value):
+    return json.dumps(value, ensure_ascii=False, default=str) if value is not None else None
+
+
+def create_task(task_id: str, task_type: str, payload: dict, *, session_id: str = None, run_id: str = None, max_attempts: int = 3):
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "INSERT INTO tasks (task_id, session_id, run_id, task_type, status, max_attempts, payload_json) VALUES (%s, %s, %s, %s, 'queued', %s, %s)",
+                (task_id, session_id, run_id, task_type, max_attempts, _task_json(payload or {})),
+            )
+
+
+def _decode_task(row):
+    if not row:
+        return row
+    row = dict(row)
+    payload_raw = row.pop("payload_json", None)
+    result_raw = row.pop("result_json", None)
+    try:
+        row["payload"] = json.loads(payload_raw) if payload_raw else {}
+    except (TypeError, json.JSONDecodeError):
+        row["payload"] = {}
+    try:
+        row["result"] = json.loads(result_raw) if result_raw else None
+    except (TypeError, json.JSONDecodeError):
+        row["result"] = None
+    return row
+
+
+def get_task(task_id: str):
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT * FROM tasks WHERE task_id=%s", (task_id,))
+            return _decode_task(cursor.fetchone())
+
+
+def get_task_events(task_id: str):
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT * FROM task_events WHERE task_id=%s ORDER BY created_at ASC, id ASC", (task_id,))
+            rows = cursor.fetchall()
+            for row in rows:
+                raw = row.pop("detail_json", None)
+                try:
+                    row["detail"] = json.loads(raw) if raw else {}
+                except (TypeError, json.JSONDecodeError):
+                    row["detail"] = {"raw": raw}
+            return rows
+
+
+def save_task_event(task_id: str, event_type: str, detail: dict | None = None):
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "INSERT INTO task_events (task_id, event_type, detail_json) VALUES (%s, %s, %s)",
+                (task_id, event_type, _task_json(detail)),
+            )
+
+
+def recover_stale_tasks():
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "UPDATE tasks SET status='queued', worker_id=NULL, lease_until=NULL, next_attempt_at=NOW(3), updated_at=NOW(3) WHERE status='running' AND lease_until IS NOT NULL AND lease_until < NOW(3)"
+            )
+
+
+def claim_next_task(worker_id: str, lease_seconds: int = 300):
+    lease_until = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(seconds=lease_seconds)
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+            # MySQL 8 row locking prevents two workers from claiming the same task.
+            conn.begin()
+            try:
+                cursor.execute(
+                    "SELECT task_id FROM tasks WHERE status='queued' AND next_attempt_at <= NOW(3) ORDER BY created_at ASC LIMIT 1 FOR UPDATE SKIP LOCKED"
+                )
+                candidate = cursor.fetchone()
+                if not candidate:
+                    conn.commit()
+                    return None
+                cursor.execute(
+                    "UPDATE tasks SET status='running', attempt=attempt+1, worker_id=%s, lease_until=%s, heartbeat_at=NOW(3), updated_at=NOW(3) WHERE task_id=%s AND status='queued'",
+                    (worker_id, lease_until, candidate["task_id"]),
+                )
+                if cursor.rowcount != 1:
+                    conn.rollback()
+                    return None
+                cursor.execute("SELECT * FROM tasks WHERE task_id=%s", (candidate["task_id"],))
+                task = _decode_task(cursor.fetchone())
+                conn.commit()
+                return task
+            except Exception:
+                conn.rollback()
+                raise
+
+
+def heartbeat_task(task_id: str, worker_id: str, lease_seconds: int = 300):
+    lease_until = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(seconds=lease_seconds)
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "UPDATE tasks SET heartbeat_at=NOW(3), lease_until=%s, updated_at=NOW(3) WHERE task_id=%s AND worker_id=%s AND status='running'",
+                (lease_until, task_id, worker_id),
+            )
+
+
+def complete_task(task_id: str, result: dict):
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "UPDATE tasks SET status=IF(status='cancel_requested', 'cancelled', 'succeeded'), result_json=%s, error_text=NULL, worker_id=NULL, lease_until=NULL, updated_at=NOW(3) WHERE task_id=%s AND status IN ('running', 'cancel_requested')",
+                (_task_json(result), task_id),
+            )
+            return cursor.rowcount == 1
+
+
+def fail_task(task_id: str, error: str, *, retry: bool):
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT attempt, status FROM tasks WHERE task_id=%s", (task_id,))
+            row = cursor.fetchone() or {}
+            if row.get("status") == "cancel_requested":
+                cursor.execute(
+                    "UPDATE tasks SET status='cancelled', error_text=%s, worker_id=NULL, lease_until=NULL, updated_at=NOW(3) WHERE task_id=%s",
+                    (error[:4000], task_id),
+                )
+            elif retry:
+                delay = min(300, 2 ** max(0, int(row.get("attempt") or 1)))
+                next_attempt = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(seconds=delay)
+                cursor.execute(
+                    "UPDATE tasks SET status='queued', error_text=%s, worker_id=NULL, lease_until=NULL, next_attempt_at=%s, updated_at=NOW(3) WHERE task_id=%s",
+                    (error[:4000], next_attempt, task_id),
+                )
+            else:
+                cursor.execute(
+                    "UPDATE tasks SET status='failed', error_text=%s, worker_id=NULL, lease_until=NULL, updated_at=NOW(3) WHERE task_id=%s",
+                    (error[:4000], task_id),
+                )
+
+
+def request_task_cancel(task_id: str):
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "UPDATE tasks SET status=IF(status='queued', 'cancelled', 'cancel_requested'), updated_at=NOW(3) WHERE task_id=%s AND status IN ('queued', 'running')",
+                (task_id,),
+            )
+            return cursor.rowcount == 1
+
+
+def is_task_cancel_requested(task_id: str) -> bool:
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT status FROM tasks WHERE task_id=%s", (task_id,))
+            row = cursor.fetchone()
+            return bool(row and row.get("status") in {"cancel_requested", "cancelled"})
+
+
+def mark_task_cancelled(task_id: str) -> bool:
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "UPDATE tasks SET status='cancelled', worker_id=NULL, lease_until=NULL, updated_at=NOW(3) WHERE task_id=%s AND status IN ('queued', 'cancel_requested', 'running')",
+                (task_id,),
+            )
+            return cursor.rowcount == 1
+
+
+def list_tasks(limit: int = 50):
+    limit = max(1, min(int(limit), 200))
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT * FROM tasks ORDER BY created_at DESC LIMIT %s", (limit,))
+            return [_decode_task(row) for row in cursor.fetchall()]
 
 def get_run_records(limit: int = 50):
     with get_connection() as conn:

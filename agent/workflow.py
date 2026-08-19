@@ -194,6 +194,7 @@ def _scope_tool_args_to_workspace(func_name: str, kwargs: dict, workspace: str) 
         return kwargs, None
     next_kwargs = dict(kwargs or {})
     rel_saved_path = None
+    next_kwargs["workspace"] = workspace
     if func_name == "write_file":
         raw_path = str(next_kwargs.get("path") or next_kwargs.get("file_path") or "").strip()
         if raw_path:
@@ -202,8 +203,9 @@ def _scope_tool_args_to_workspace(func_name: str, kwargs: dict, workspace: str) 
                 target = os.path.join(workspace, os.path.basename(raw_path))
             next_kwargs["path"] = target
             rel_saved_path = os.path.relpath(target, workspace).replace("\\", "/")
-    elif func_name in ("run_command", "start_background_service") and not next_kwargs.get("cwd"):
-        next_kwargs["cwd"] = workspace
+    elif func_name in ("read_file", "run_command", "start_background_service"):
+        if func_name in ("run_command", "start_background_service") and not next_kwargs.get("cwd"):
+            next_kwargs["cwd"] = "."
     return next_kwargs, rel_saved_path
 
 

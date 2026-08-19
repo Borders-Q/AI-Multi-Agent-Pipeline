@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Box,
   Button,
@@ -52,54 +52,51 @@ export default function NodePropertiesPanel() {
   const [edgeForm, setEdgeForm] = useState({});
 
   useEffect(() => {
-    if (!selectedNode) {
-      setForm({});
-      return;
-    }
+    const timer = window.setTimeout(() => {
+      if (!selectedNode) {
+        setForm({});
+        return;
+      }
 
-    const data = selectedNode.data || {};
-    setForm({
-      label: data.label || '',
-      agentId: data.agentId || '',
-      role: data.role || '',
-      stage: data.stage || 'custom',
-      enabled: data.enabled ?? true,
-      description: data.description || '',
-      instruction: data.instruction || '',
-      systemPrompt: data.systemPrompt || '',
-      inputFields: fieldsToText(data.inputFields),
-      outputFields: fieldsToText(data.outputFields),
-      condition: data.condition || '',
-      codeOperation: data.codeAgentConfig?.operation || 'write_file',
-      codeTargetPath: data.codeAgentConfig?.targetPath || 'output/code_agent_demo.txt',
-      codeContent: data.codeAgentConfig?.content || '',
-      codeAuditPath: data.codeAgentConfig?.auditLogPath || 'output/code_agent_audit.jsonl',
-      codeDryRun: data.codeAgentConfig?.dryRun ?? true,
-      approvalQuestion: data.humanApprovalConfig?.question || '是否批准继续执行后续节点？',
-      approvalApproveLabel: data.humanApprovalConfig?.approveLabel || '批准继续',
-      approvalRejectLabel: data.humanApprovalConfig?.rejectLabel || '拒绝停止',
-      approvalRequired: data.humanApprovalConfig?.required ?? true,
-      customRole: data.customAgentMeta?.role || data.role || '自定义智能体',
-      customPromptRef: data.customAgentMeta?.promptRef || '',
-      customVersion: data.customAgentMeta?.version || '1.0',
-    });
-    setTab('basic');
+      const data = selectedNode.data || {};
+      setForm({
+        label: data.label || '', agentId: data.agentId || '', role: data.role || '',
+        stage: data.stage || 'custom', enabled: data.enabled ?? true,
+        description: data.description || '', instruction: data.instruction || '',
+        systemPrompt: data.systemPrompt || '', inputFields: fieldsToText(data.inputFields),
+        outputFields: fieldsToText(data.outputFields), condition: data.condition || '',
+        codeOperation: data.codeAgentConfig?.operation || 'write_file',
+        codeTargetPath: data.codeAgentConfig?.targetPath || 'output/code_agent_demo.txt',
+        codeContent: data.codeAgentConfig?.content || '',
+        codeAuditPath: data.codeAgentConfig?.auditLogPath || 'output/code_agent_audit.jsonl',
+        codeDryRun: data.codeAgentConfig?.dryRun ?? true,
+        approvalQuestion: data.humanApprovalConfig?.question || '是否批准继续执行后续节点？',
+        approvalApproveLabel: data.humanApprovalConfig?.approveLabel || '批准继续',
+        approvalRejectLabel: data.humanApprovalConfig?.rejectLabel || '拒绝停止',
+        approvalRequired: data.humanApprovalConfig?.required ?? true,
+        customRole: data.customAgentMeta?.role || data.role || '自定义智能体',
+        customPromptRef: data.customAgentMeta?.promptRef || '',
+        customVersion: data.customAgentMeta?.version || '1.0',
+      });
+      setTab('basic');
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [selectedNode]);
 
   useEffect(() => {
-    if (!selectedEdge) {
-      setEdgeForm({});
-      return;
-    }
-    const data = selectedEdge.data || {};
-    setEdgeForm({
-      edgeType: data.edgeType || 'control',
-      label: data.label || '',
-      condition: data.condition || '',
-      fromOutputField: data.fromOutputField || '',
-      toInputField: data.toInputField || '',
-      maxIterations: data.loopPolicy?.maxIterations || 0,
-    });
+    const timer = window.setTimeout(() => {
+      if (!selectedEdge) {
+        setEdgeForm({});
+        return;
+      }
+      const data = selectedEdge.data || {};
+      setEdgeForm({
+        edgeType: data.edgeType || 'control', label: data.label || '', condition: data.condition || '',
+        fromOutputField: data.fromOutputField || '', toInputField: data.toInputField || '',
+        maxIterations: data.loopPolicy?.maxIterations || 0,
+      });
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [selectedEdge]);
 
   const nodeIssues = useMemo(

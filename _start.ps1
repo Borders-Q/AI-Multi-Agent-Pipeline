@@ -8,6 +8,13 @@ $Host.UI.RawUI.WindowTitle = "天韬（SkyT） 系统 - 一键启动"
 
 $baseDir = $PSScriptRoot
 
+foreach ($port in @(8000, 5173, 8001)) {
+    $listener = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue
+    if ($listener) {
+        throw "端口 $port 已被占用，请先运行 一键关闭.bat 或关闭占用进程。"
+    }
+}
+
 $venvPython = Join-Path $baseDir ".venv\Scripts\python.exe"
 if (Test-Path $venvPython) {
     $pythonExe = $venvPython
@@ -67,6 +74,20 @@ for ($i = 0; $i -lt $maxRetries; $i++) {
 
 }
 
+try {
+    $live = Invoke-WebRequest -Uri "http://127.0.0.1:8000/health/live" -UseBasicParsing -TimeoutSec 3
+    if ($live.StatusCode -ne 200) { throw "后端健康检查失败" }
+} catch {
+    throw "后端未通过健康检查：$($_.Exception.Message)"
+}
+
+$envLocal = Join-Path $baseDir ".env.local"
+if (Test-Path $envLocal) {
+    Write-Host "本地访问令牌已写入：$envLocal" -ForegroundColor Cyan
+} else {
+    Write-Host "未找到 .env.local；后端启动时应自动生成访问令牌。" -ForegroundColor Yellow
+}
+
 
 
 Write-Host "所有服务已完全就绪！" -ForegroundColor Green
@@ -92,4 +113,3 @@ Write-Host "2. 本控制台窗口将在 3 秒后自动关闭..." -ForegroundColo
 Start-Sleep -Seconds 3
 
 exit
-

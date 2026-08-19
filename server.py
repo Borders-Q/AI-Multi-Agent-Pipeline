@@ -12,6 +12,8 @@ import uvicorn
 import subprocess
 from typing import Any, Optional
 import sys
+import logging
+from collections import defaultdict, deque
 
 # Windows 平台下屏蔽 Uvicorn/asyncio 底层无害的 socket.shutdown 报错 (WinError 10022/10054)
 if sys.platform == 'win32':
@@ -34,7 +36,7 @@ from fastapi import FastAPI, HTTPException, BackgroundTasks, Request, WebSocket,
 from fastapi.responses import FileResponse, Response, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 import db
 from agent.llm_client import LANGUAGE_OUTPUT_RULE, llm
 from agent.router import build_ollama_messages, is_complex_engineering_task, route_intent, get_prioritized_models
@@ -58,13 +60,86 @@ import agent.tools.web_skills
 import agent.tools.report_tools
 from agent.tools.fs_tools import ask_user_for_directory
 from agent.distillation_worker import distillation_loop
+from skyt_platform.auth import (
+    clear_auth_cookie,
+    is_public_path,
+    is_token_valid,
+    set_auth_cookie,
+    token_from_request,
+    token_from_websocket,
+    unauthorized_response,
+)
+from skyt_platform.config import settings
+from skyt_platform.logging_setup import configure_logging, request_id_var
+from skyt_platform.tasks import task_manager
+from skyt_platform.workspace_policy import WorkspaceViolation, canonical_root, resolve_inside
+
+configure_logging()
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="天韬（SkyT） API")
+_request_windows = defaultdict(deque)
 
-@app.on_event("startup")
-async def startup_event():
-    import asyncio
-    asyncio.create_task(distillation_loop())
+
+@app.middleware("http")
+async def request_context_and_auth(request: Request, call_next):
+    request_id = request.headers.get("X-Request-ID") or uuid.uuid4().hex
+    request_id_var.set(request_id)
+    if request.method == "OPTIONS" or is_public_path(request.url.path):
+        response = await call_next(request)
+    elif not is_token_valid(token_from_request(request)):
+        response = unauthorized_response()
+    else:
+        response = await call_next(request)
+    response.headers["X-Request-ID"] = request_id
+    return response
+
+
+@app.middleware("http")
+async def request_size_limit(request: Request, call_next):
+    content_length = request.headers.get("content-length")
+    try:
+        too_large = content_length and int(content_length) > settings.max_request_bytes
+    except (TypeError, ValueError):
+        too_large = False
+    if too_large:
+        return Response(
+            content=json.dumps({"detail": "请求体过大", "error_code": "REQUEST_TOO_LARGE"}),
+            status_code=413,
+            media_type="application/json",
+        )
+    return await call_next(request)
+
+
+@app.middleware("http")
+async def basic_rate_limit(request: Request, call_next):
+    now = time.monotonic()
+    key = request.client.host if request.client else "unknown"
+    window = _request_windows[key]
+    cutoff = now - settings.rate_limit_window_seconds
+    while window and window[0] < cutoff:
+        window.popleft()
+    if len(window) >= settings.rate_limit_requests:
+        return Response(
+            content=json.dumps({"detail": "请求过于频繁，请稍后再试。", "error_code": "RATE_LIMITED"}),
+            status_code=429,
+            media_type="application/json",
+            headers={"Retry-After": str(settings.rate_limit_window_seconds)},
+        )
+    window.append(now)
+    return await call_next(request)
+
+def _canonical_workspace(value: Optional[str], *, required: bool = False) -> Optional[str]:
+    """Validate and canonicalize a user-selected workspace before any file operation."""
+    raw = (value or "").strip()
+    if not raw:
+        if required:
+            raise HTTPException(status_code=400, detail="请先绑定一个存在的工作区目录。")
+        return None
+    try:
+        return str(canonical_root(raw))
+    except WorkspaceViolation as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 _fetching_cpu = False
@@ -115,15 +190,75 @@ async def startup_event():
     
     # Start telemetry cache loop
     asyncio.create_task(telemetry_loop())
+    await task_manager.start()
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    await task_manager.stop()
 
 # app.add_middleware(GZipMiddleware, minimum_size=1000)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=list(settings.allowed_origins),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+class LoginRequest(BaseModel):
+    access_token: str
+
+
+@app.post("/api/auth/login")
+async def login(req: LoginRequest):
+    if not is_token_valid(req.access_token):
+        raise HTTPException(status_code=401, detail="访问令牌不正确。")
+    response = Response(content=json.dumps({"status": "success"}), media_type="application/json")
+    set_auth_cookie(response)
+    return response
+
+
+@app.post("/api/auth/logout")
+async def logout():
+    response = Response(content=json.dumps({"status": "logged_out"}), media_type="application/json")
+    clear_auth_cookie(response)
+    return response
+
+
+@app.get("/api/auth/me")
+async def auth_me(request: Request):
+    if not is_token_valid(token_from_request(request)):
+        raise HTTPException(status_code=401, detail="未登录。")
+    return {"authenticated": True, "auth_enabled": settings.auth_enabled}
+
+
+@app.get("/health/live")
+async def health_live():
+    return {"status": "ok", "service": "skyt", "request_id": request_id_var.get()}
+
+
+@app.get("/health/ready")
+async def health_ready():
+    checks = {"database": False, "ollama": False}
+    try:
+        db.check_health()
+        checks["database"] = True
+    except Exception as exc:
+        logger.warning("Database readiness failed: %s", exc)
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get("http://127.0.0.1:11434/api/tags", timeout=3) as response:
+                checks["ollama"] = response.status == 200
+    except Exception:
+        pass
+    ready = checks["database"]
+    return Response(
+        content=json.dumps({"status": "ready" if ready else "degraded", "checks": checks}),
+        media_type="application/json",
+        status_code=200 if ready else 503,
+    )
 
 class APIKeyRequest(BaseModel):
     api_key: str
@@ -157,6 +292,79 @@ class GPUDraftSaveRequest(BaseModel):
     response_text: str
     workspace: Optional[str] = None
     run_id: Optional[str] = None
+
+
+class TaskCreateRequest(BaseModel):
+    task_type: str
+    payload: dict[str, Any] = Field(default_factory=dict)
+    session_id: Optional[str] = None
+    run_id: Optional[str] = None
+
+
+async def _run_session_markdown_task(payload: dict[str, Any]):
+    return await generate_session_markdown(
+        str(payload["session_id"]),
+        kind=str(payload.get("kind") or "important_work_log"),
+        workspace=payload.get("workspace"),
+    )
+
+
+async def _run_run_markdown_task(payload: dict[str, Any]):
+    return await generate_run_markdown(
+        str(payload["run_id"]),
+        kind=str(payload.get("kind") or "important_work_log"),
+        workspace=payload.get("workspace"),
+    )
+
+
+async def _run_distill_task(payload: dict[str, Any]):
+    saved_bytes = await asyncio.to_thread(db.distill_run_data, str(payload["run_id"]))
+    return {"run_id": payload["run_id"], "space_saved_bytes": saved_bytes}
+
+
+task_manager.register("session_markdown", _run_session_markdown_task)
+task_manager.register("run_markdown", _run_run_markdown_task)
+task_manager.register("distill_run", _run_distill_task)
+
+
+@app.post("/api/tasks", status_code=202)
+async def create_task_endpoint(req: TaskCreateRequest):
+    if req.task_type in {"session_markdown", "run_markdown", "distill_run"}:
+        required_key = "session_id" if req.task_type == "session_markdown" else "run_id"
+        if not req.payload.get(required_key):
+            raise HTTPException(status_code=422, detail=f"任务缺少 {required_key}。")
+        if req.payload.get("workspace"):
+            req.payload["workspace"] = _canonical_workspace(req.payload["workspace"])
+    try:
+        task = await task_manager.submit(req.task_type, req.payload, session_id=req.session_id, run_id=req.run_id)
+        return {"status": "queued", "task_id": task["task_id"], "task": task}
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+
+
+@app.get("/api/tasks/{task_id}")
+async def get_task_endpoint(task_id: str):
+    task = db.get_task(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return {"task": task}
+
+
+@app.get("/api/tasks/{task_id}/events")
+async def get_task_events_endpoint(task_id: str):
+    if not db.get_task(task_id):
+        raise HTTPException(status_code=404, detail="Task not found")
+    return {"events": db.get_task_events(task_id)}
+
+
+@app.post("/api/tasks/{task_id}/cancel")
+async def cancel_task_endpoint(task_id: str):
+    task = await task_manager.cancel(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    if task.get("status") in {"queued", "running"}:
+        db.save_task_event(task_id, "cancel_requested", {"source": "api"})
+    return {"status": task.get("status", "unknown"), "task": task}
 
 @app.post("/api/models/add")
 def add_model(req: APIKeyRequest):
@@ -889,7 +1097,7 @@ async def save_gpu_draft_code(req: GPUDraftSaveRequest):
                 }, ensure_ascii=False), 0)
             return {"status": "cancelled", "saved_files": [], "target_dir": None, "message": "已取消保存，代码仍保留在对话中。"}
 
-    target_dir = os.path.abspath(target_dir)
+    target_dir = _canonical_workspace(target_dir, required=True)
     try:
         saved_files = _save_code_blocks_to_dir(blocks, target_dir)
     except Exception as e:
@@ -914,7 +1122,7 @@ async def bind_workspace():
     try:
         path = await _popup_folder_selector()
         if path and not path.startswith("Error"):
-            return {"status": "success", "path": path}
+            return {"status": "success", "path": _canonical_workspace(path, required=True)}
         else:
             return {"status": "cancelled", "path": None}
     except Exception as e:
@@ -928,7 +1136,8 @@ class RunCommandRequest(BaseModel):
 async def run_workspace_command(req: RunCommandRequest):
     try:
         from agent.tools.fs_tools import start_background_service
-        result = start_background_service(req.command, req.workspace)
+        workspace = _canonical_workspace(req.workspace, required=True)
+        result = start_background_service(req.command, cwd=".", workspace=workspace)
         urls = extract_local_urls(f"{req.command}\n{result}")
         return {"status": "success", "output": result, "browser_url": urls[0] if urls else None}
     except Exception as e:
@@ -937,9 +1146,7 @@ async def run_workspace_command(req: RunCommandRequest):
 terminal_sessions = {}
 
 def _safe_terminal_cwd(cwd: Optional[str]) -> str:
-    if cwd and os.path.isdir(cwd):
-        return os.path.abspath(cwd)
-    return os.getcwd()
+    return _canonical_workspace(cwd, required=True)
 
 def _terminal_command(shell: str) -> list[str]:
     normalized = (shell or "powershell").lower()
@@ -955,6 +1162,7 @@ async def create_terminal_session(req: TerminalSessionRequest):
     session_id = f"TERM_{uuid.uuid4().hex[:10].upper()}"
     terminal_sessions[session_id] = {
         "cwd": cwd,
+        "workspace": cwd,
         "shell": req.shell or "powershell",
         "process": None,
     }
@@ -970,6 +1178,9 @@ async def close_terminal_session(session_id: str):
 
 @app.websocket("/api/terminal/sessions/{session_id}")
 async def terminal_websocket(websocket: WebSocket, session_id: str):
+    if not is_token_valid(token_from_websocket(websocket)):
+        await websocket.close(code=1008, reason="Authentication required")
+        return
     await websocket.accept()
     session = terminal_sessions.get(session_id)
     if not session:
@@ -1001,9 +1212,14 @@ async def terminal_websocket(websocket: WebSocket, session_id: str):
         cd_match = re.match(r"^(cd|Set-Location)\s+(.+)$", command, re.IGNORECASE)
         if cd_match:
             target = cd_match.group(2).strip().strip('"').strip("'")
-            next_cwd = target if os.path.isabs(target) else os.path.abspath(os.path.join(session["cwd"], target))
-            if os.path.isdir(next_cwd):
-                session["cwd"] = next_cwd
+            try:
+                next_cwd = resolve_inside(session["workspace"], target, allow_missing=False)
+            except WorkspaceViolation:
+                await websocket.send_json({"type": "stderr", "data": "Directory is outside the bound workspace.\r\n"})
+                await websocket.send_json({"type": "prompt", "cwd": session["cwd"]})
+                return
+            if next_cwd.is_dir():
+                session["cwd"] = str(next_cwd)
                 await websocket.send_json({"type": "stdout", "data": f"{session['cwd']}\r\n"})
             else:
                 await websocket.send_json({"type": "stderr", "data": f"Directory not found: {target}\r\n"})
@@ -1174,6 +1390,7 @@ async def stop_chat(session_id: str):
 
 @app.post("/api/chat")
 async def chat_endpoint(req: ChatRequest):
+    req.workspace = _canonical_workspace(req.workspace)
     
     # Remove the early exit so NPU/GPU routes can be evaluated
     async def generate():
@@ -1855,14 +2072,14 @@ def get_dashboard_stats_endpoint():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/api/distill/{run_id}")
-def distill_run(run_id: str):
+@app.post("/api/distill/{run_id}", status_code=202)
+async def distill_run(run_id: str):
     """
     Trigger manual distillation for a run to save space.
     """
     try:
-        saved_bytes = db.distill_run_data(run_id)
-        return {"status": "success", "run_id": run_id, "space_saved_bytes": saved_bytes}
+        task = await task_manager.submit("distill_run", {"run_id": run_id}, run_id=run_id)
+        return {"status": "queued", "run_id": run_id, "task_id": task["task_id"], "task": task}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -1888,10 +2105,16 @@ def get_run_session_events_endpoint(session_id: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/api/runs/sessions/{session_id}/generate-markdown")
+@app.post("/api/runs/sessions/{session_id}/generate-markdown", status_code=202)
 async def generate_run_session_markdown_endpoint(session_id: str, req: MarkdownGenerateRequest):
     try:
-        return await generate_session_markdown(session_id, kind=req.kind, workspace=req.workspace)
+        workspace = _canonical_workspace(req.workspace)
+        task = await task_manager.submit(
+            "session_markdown",
+            {"session_id": session_id, "kind": req.kind, "workspace": workspace},
+            session_id=session_id,
+        )
+        return {"status": "queued", "task_id": task["task_id"], "task": task}
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
@@ -1905,10 +2128,16 @@ def get_run_events_endpoint(run_id: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/api/runs/{run_id}/generate-markdown")
+@app.post("/api/runs/{run_id}/generate-markdown", status_code=202)
 async def generate_run_markdown_endpoint(run_id: str, req: MarkdownGenerateRequest):
     try:
-        return await generate_run_markdown(run_id, kind=req.kind, workspace=req.workspace)
+        workspace = _canonical_workspace(req.workspace)
+        task = await task_manager.submit(
+            "run_markdown",
+            {"run_id": run_id, "kind": req.kind, "workspace": workspace},
+            run_id=run_id,
+        )
+        return {"status": "queued", "task_id": task["task_id"], "task": task}
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:

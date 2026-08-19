@@ -597,7 +597,7 @@ def deploy_workspace_preview(workspace: str) -> dict:
         url = f"http://127.0.0.1:{port}"
         launcher = _write_flask_preview_launcher(app_dir, app_entry, port)
         command = f'"{sys.executable}" "{launcher.name}"'
-        start = start_background_service(command, str(app_dir))
+        start = start_background_service(command, cwd=str(app_dir), workspace=str(base))
         ok = not start.startswith("Error:")
         result["steps"].append({"name": "start_flask_service", "command": command, "cwd": str(app_dir), "ok": ok, "output": start[-4000:]})
         result["status"] = "success" if ok else "failed"
@@ -652,7 +652,7 @@ def deploy_workspace_preview(workspace: str) -> dict:
 
         url = f"http://127.0.0.1:{port}"
         command = f"npm run dev -- --host 127.0.0.1 --port {port}"
-        start = start_background_service(command, str(package_dir))
+        start = start_background_service(command, cwd=str(package_dir), workspace=str(base))
         ok = not start.startswith("Error:")
         result["steps"].append({"name": "start_node_dev_server", "command": command, "cwd": str(package_dir), "ok": ok, "output": start[-4000:]})
         result["status"] = "success" if ok else "failed"
@@ -677,7 +677,7 @@ def deploy_workspace_preview(workspace: str) -> dict:
         port = _find_free_port(port, limit=120)
         url = f"http://127.0.0.1:{port}"
         command = f'"{sys.executable}" -m http.server {port} --bind 127.0.0.1'
-        start = start_background_service(command, str(static_dir))
+        start = start_background_service(command, cwd=str(static_dir), workspace=str(base))
         ok = not start.startswith("Error:")
         result["steps"].append({"name": "start_static_server", "command": command, "cwd": str(static_dir), "ok": ok, "output": start[-4000:]})
         result["status"] = "success" if ok else "failed"

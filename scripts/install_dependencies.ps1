@@ -18,24 +18,8 @@ $LocalPythonDir = Join-Path $ProjectRoot ".python"
 $LocalPython = Join-Path $LocalPythonDir "python.exe"
 $InstallerCacheDir = Join-Path $ProjectRoot ".installer-cache"
 $BookManagerRequirements = Join-Path $ProjectRoot "book_manager\book_manager\requirements.txt"
-
-$PythonPackages = @(
-    "fastapi",
-    "uvicorn[standard]",
-    "pymysql",
-    "openai",
-    "requests",
-    "aiohttp",
-    "python-dotenv",
-    "cryptography",
-    "psutil",
-    "pydantic",
-    "playwright",
-    "torch",
-    "transformers",
-    "flask",
-    "jinja2"
-)
+$ProjectRequirements = Join-Path $ProjectRoot "requirements.txt"
+$OptionalRequirements = Join-Path $ProjectRoot "requirements-optional.txt"
 
 function Write-Title {
     param([string]$Text)
@@ -301,8 +285,16 @@ Invoke-InstallStep "Upgrade pip, setuptools and wheel from Tsinghua source" {
 }
 
 Invoke-InstallStep "Install backend Python packages from Tsinghua source" {
-    $arguments = @("-m", "pip", "install") + $PythonPackages + @("--index-url", $PipIndexUrl)
-    Invoke-Native -FilePath $EffectivePython -Arguments $arguments
+    if (-not (Test-Path $ProjectRequirements)) {
+        throw "Project dependency file not found: $ProjectRequirements"
+    }
+    Invoke-Native -FilePath $EffectivePython -Arguments @("-m", "pip", "install", "-r", $ProjectRequirements, "--index-url", $PipIndexUrl)
+}
+
+Invoke-InstallStep "Install optional local model and browser packages from Tsinghua source" {
+    if (Test-Path $OptionalRequirements) {
+        Invoke-Native -FilePath $EffectivePython -Arguments @("-m", "pip", "install", "-r", $OptionalRequirements, "--index-url", $PipIndexUrl)
+    }
 }
 
 Invoke-InstallStep "Install book_manager requirements from Tsinghua source" {

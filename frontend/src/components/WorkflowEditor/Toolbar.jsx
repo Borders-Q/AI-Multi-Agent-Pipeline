@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   Box,
@@ -72,10 +72,13 @@ export default function Toolbar() {
   const [formStage, setFormStage] = useState(stage);
 
   useEffect(() => {
-    setFormTitle(title);
-    setFormDesc(description);
-    setFormTags(tags);
-    setFormStage(stage);
+    const timer = window.setTimeout(() => {
+      setFormTitle(title);
+      setFormDesc(description);
+      setFormTags(tags);
+      setFormStage(stage);
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [title, description, tags, stage]);
 
   const showToast = (message, severity = 'success') => {
@@ -96,7 +99,7 @@ export default function Toolbar() {
     const saveId = templateId || `tmpl_${Date.now()}`;
 
     try {
-      const res = await fetch(`http://${window.location.hostname}:8000/api/workflows/templates/${saveId}`, {
+      const res = await fetch(`/api/workflows/templates/${saveId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -123,7 +126,7 @@ export default function Toolbar() {
     setExportingSkill(true);
     try {
       const workflowJson = exportWorkflow();
-      const res = await fetch(`http://${window.location.hostname}:8000/api/workflows/export-trae-skill`, {
+      const res = await fetch('/api/workflows/export-trae-skill', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

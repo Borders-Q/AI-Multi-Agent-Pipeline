@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -58,7 +58,7 @@ function WorkflowEditorContent({ sessionId }) {
   useEffect(() => {
     if (!sessionId) return;
     
-    fetch(`http://127.0.0.1:8000/api/sessions/${sessionId}/workflow`)
+    fetch(`/api/sessions/${sessionId}/workflow`)
       .then(res => res.json())
       .then(data => {
         if (data.workflow_json) {
@@ -130,7 +130,7 @@ function WorkflowEditorContent({ sessionId }) {
     setSaving(true);
     const flow = reactFlowInstance.toObject();
     try {
-      await fetch(`http://127.0.0.1:8000/api/sessions/${sessionId}/workflow`, {
+      await fetch(`/api/sessions/${sessionId}/workflow`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ workflow_json: JSON.stringify(flow) })

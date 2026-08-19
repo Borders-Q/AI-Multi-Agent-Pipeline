@@ -1,10 +1,11 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
 
-const API_BASE = `http://${window.location.hostname}:8000`;
-const WS_BASE = `ws://${window.location.hostname}:8000`;
+const API_BASE = '';
+const wsPort = window.location.port === '5173' ? '8000' : window.location.port;
+const WS_BASE = `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.hostname}${wsPort ? `:${wsPort}` : ''}`;
 
 export default function TerminalPanel({ workspacePath, active, queuedCommand, onQueuedCommandConsumed }) {
   const hostRef = useRef(null);
@@ -16,15 +17,15 @@ export default function TerminalPanel({ workspacePath, active, queuedCommand, on
   const readyRef = useRef(false);
   const [status, setStatus] = useState('idle');
 
-  const writePrompt = () => {
+  const writePrompt = useCallback(() => {
     const cwd = workspacePath || '天韬（SkyT） workspace';
     termRef.current?.write(`\r\nPS ${cwd}> `);
-  };
+  }, [workspacePath]);
 
-  const sendLine = (command) => {
+  const sendLine = useCallback((command) => {
     if (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) return;
     socketRef.current.send(JSON.stringify({ type: 'stdin', data: `${command}\r\n` }));
-  };
+  }, []);
 
   useEffect(() => {
     if (!active || !hostRef.current || termRef.current) return undefined;
@@ -99,7 +100,7 @@ export default function TerminalPanel({ workspacePath, active, queuedCommand, on
       fitRef.current = null;
       readyRef.current = false;
     };
-  }, [active]);
+  }, [active, sendLine, writePrompt]);
 
   useEffect(() => {
     if (!active || !termRef.current || socketRef.current) return undefined;
@@ -154,7 +155,7 @@ export default function TerminalPanel({ workspacePath, active, queuedCommand, on
         fetch(`${API_BASE}/api/terminal/sessions/${sessionRef.current}`, { method: 'DELETE' }).catch(() => {});
       }
     };
-  }, [active, workspacePath]);
+  }, [active, workspacePath, writePrompt]);
 
   useEffect(() => {
     if (!active || !queuedCommand || !readyRef.current) return;
@@ -163,7 +164,7 @@ export default function TerminalPanel({ workspacePath, active, queuedCommand, on
     sendLine(queuedCommand);
     lineRef.current = '';
     onQueuedCommandConsumed?.();
-  }, [active, queuedCommand, onQueuedCommandConsumed]);
+  }, [active, queuedCommand, onQueuedCommandConsumed, sendLine]);
 
   return (
     <div className="terminal-panel">

@@ -1,5 +1,3 @@
-import React from 'react';
-
 export default function AppTooltip({ label, children, side = 'top', disabled = false }) {
   if (!label) return children;
 

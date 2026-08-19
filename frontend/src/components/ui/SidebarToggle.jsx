@@ -1,4 +1,3 @@
-import React from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import BaseIconButton from './BaseIconButton';
 import { zh } from '../../i18n/zh';

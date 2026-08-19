@@ -1,4 +1,3 @@
-import React from 'react';
 import AppTooltip from './AppTooltip';
 
 export default function BaseIconButton({

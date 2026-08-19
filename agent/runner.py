@@ -74,13 +74,13 @@ class AgentRunner:
             return await self.dispatch_subagent(args["agent_type"], args["task"])
         elif func_name == "write_file":
             await self.emit_log(f"> [文件系统] 正在写入文件: {args.get('path')}")
-            return write_file(args.get("path", ""), args.get("content", ""))
+            return write_file(args.get("path", ""), args.get("content", ""), args.get("workspace"))
         elif func_name == "read_file":
             await self.emit_log(f"> [文件系统] 正在读取文件: {args.get('path')}")
-            return read_file(args.get("path", ""))
+            return read_file(args.get("path", ""), args.get("workspace"))
         elif func_name == "run_command":
             await self.emit_log(f"> [终端执行] 正在执行命令: {args.get('command')}")
-            return run_command(args.get("command", ""), args.get("cwd"))
+            return run_command(args.get("command", ""), args.get("cwd"), args.get("workspace"))
         elif func_name == "import_local_skill":
             from agent.tools.fs_tools import import_local_skill
             await self.emit_log(f"> [技能扩展] 正在动态加载本地技能: {args.get('path')}")

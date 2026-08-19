@@ -1,5 +1,6 @@
 import asyncio
 import json
+import os
 import db
 from agent.workflow import AgentWorkflowEngine
 from agent.llm_client import llm
@@ -9,6 +10,9 @@ class MockQueue:
         print("QUEUE:", str(item).encode("gbk", "ignore").decode("gbk"))
 
 async def main():
+    if os.getenv("SKYT_LIVE_INTEGRATION") != "1":
+        print("SKYT_LIVE_INTEGRATION is not 1; live model/database test skipped.")
+        return
     keys = db.get_all_api_keys()
     if keys:
         for item in keys:

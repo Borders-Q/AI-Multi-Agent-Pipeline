@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { History, PlayCircle, CheckCircle, XCircle, Search, Clock, Activity, Target, Zap, FileText, MessageSquare, Layers } from 'lucide-react';
 
-const API_BASE = `http://${window.location.hostname}:8000`;
+const API_BASE = '';
 
 function parseJsonField(value) {
   if (!value) return null;
@@ -87,13 +87,16 @@ export default function RunHistory() {
   }, [sessions, filterStatus, searchTerm]);
 
   useEffect(() => {
-    if (filteredSessions.length > 0) {
-      if (!selectedSession || !filteredSessions.find(item => item.session_id === selectedSession.session_id)) {
-        setSelectedSession(filteredSessions[0]);
+    const timer = window.setTimeout(() => {
+      if (filteredSessions.length > 0) {
+        if (!selectedSession || !filteredSessions.find(item => item.session_id === selectedSession.session_id)) {
+          setSelectedSession(filteredSessions[0]);
+        }
+      } else {
+        setSelectedSession(null);
       }
-    } else {
-      setSelectedSession(null);
-    }
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [filteredSessions, selectedSession]);
 
   const formatTime = (dateStr) => {
@@ -102,6 +105,18 @@ export default function RunHistory() {
         month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit'
       });
     } catch { return dateStr; }
+  };
+
+  const waitForTask = async (taskId) => {
+    for (let attempt = 0; attempt < 120; attempt += 1) {
+      const response = await fetch(`${API_BASE}/api/tasks/${encodeURIComponent(taskId)}`);
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail || '任务状态读取失败');
+      const task = data.task || {};
+      if (['succeeded', 'failed', 'cancelled'].includes(task.status)) return task;
+      await new Promise((resolve) => window.setTimeout(resolve, 750));
+    }
+    throw new Error('报告生成超时，请到任务状态中查看。');
   };
 
   const generateImportantWorkLog = async () => {
@@ -115,7 +130,10 @@ export default function RunHistory() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || '生成失败');
-      alert(`已生成历史会话工作记录，报告 ID：${data.report_id}`);
+      const task = data.task_id ? await waitForTask(data.task_id) : data;
+      if (task.status && task.status !== 'succeeded') throw new Error(task.error_text || '报告生成失败');
+      const result = task.result || task;
+      alert(`已生成历史会话工作记录，报告 ID：${result.report_id || '已完成'}`);
     } catch (error) {
       alert(`生成历史会话工作记录失败：${error.message}`);
     } finally {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Activity, Cpu, HardDrive, Network } from 'lucide-react';
 
 export default function SystemTelemetry() {
@@ -14,14 +14,14 @@ export default function SystemTelemetry() {
     const fetchTelemetry = async () => {
       try {
         const startTime = Date.now();
-        const res = await fetch(`http://${window.location.hostname}:8000/api/telemetry`);
+        const res = await fetch('/api/telemetry');
         const latency = Date.now() - startTime;
         
         if (res.ok) {
           const data = await res.json();
           setTelemetry({ ...data, latency });
         }
-      } catch (e) {
+      } catch {
         // Silent fail for telemetry
       }
     };

@@ -1,5 +1,3 @@
-import React from 'react';
-
 export default function ActionCard({ icon, label, description, active, loading, disabled, onClick }) {
   return (
     <button

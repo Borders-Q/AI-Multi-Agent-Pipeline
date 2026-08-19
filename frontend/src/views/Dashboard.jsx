@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ReactECharts from 'echarts-for-react';
 
-const API_BASE = `http://${window.location.hostname}:8000`;
+const API_BASE = '';
 
 const AnimatedNumber = ({ value, suffix = '' }) => {
   // 移除复杂的 setInterval 动画，直接渲染传入的真实数值，避免 React 18 StrictMode 下的闭包陷阱和重渲染导致的数据闪烁归零问题

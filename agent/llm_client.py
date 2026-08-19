@@ -1,5 +1,6 @@
 import os
 import json
+import httpx
 from openai import AsyncOpenAI
 from agent.token_usage import usage_from_openai_response, estimate_messages_tokens, estimate_text_tokens
 
@@ -51,7 +52,16 @@ class LLMClientManager:
         # Auto-register local Ollama client
         try:
             self.clients["ollama"] = {
-                "client": AsyncOpenAI(base_url="http://127.0.0.1:11434/v1", api_key="ollama"),
+                # Ollama is local. Bypass Windows/system proxy discovery so requests
+                # to 127.0.0.1 are not sent through a configured gateway.
+                "client": AsyncOpenAI(
+                    base_url="http://127.0.0.1:11434/v1",
+                    api_key="ollama",
+                    http_client=httpx.AsyncClient(
+                        timeout=httpx.Timeout(600.0, connect=10.0),
+                        trust_env=False,
+                    ),
+                ),
                 "model": "gemma4:e4b",  # Will be overridden by actual model name if needed
                 "api_key": "ollama"
             }

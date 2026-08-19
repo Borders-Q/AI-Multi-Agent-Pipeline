@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Alert,
@@ -21,7 +21,7 @@ import {
 import { Blocks, Bot, Download, FileText, GitBranch, History, Play, RefreshCw, Search, Settings, Sparkles } from 'lucide-react';
 import { useWorkflowStore } from '../store/workflowStore';
 
-const API_BASE = `http://${window.location.hostname}:8000`;
+const API_BASE = '';
 
 const pageSx = {
   p: 4,
@@ -163,7 +163,7 @@ export default function Workflows({ sessionId = 'default', onRunWorkflowTemplate
   const loadWorkflow = useWorkflowStore((state) => state.loadWorkflow);
   const clearWorkflow = useWorkflowStore((state) => state.clearWorkflow);
 
-  const loadTemplates = async () => {
+  const loadTemplates = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch(`${API_BASE}/api/workflows/templates`);
@@ -178,17 +178,20 @@ export default function Workflows({ sessionId = 'default', onRunWorkflowTemplate
     } finally {
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    loadTemplates();
   }, []);
 
   useEffect(() => {
+    const timer = window.setTimeout(() => { void loadTemplates(); }, 0);
+    return () => window.clearTimeout(timer);
+  }, [loadTemplates]);
+
+  useEffect(() => {
     if (selectedTemplate?.recommended_user_prompt) {
-      setRequirement(selectedTemplate.recommended_user_prompt);
+      const timer = window.setTimeout(() => setRequirement(selectedTemplate.recommended_user_prompt), 0);
+      return () => window.clearTimeout(timer);
     }
-  }, [selectedTemplate?.template_id]);
+    return undefined;
+  }, [selectedTemplate?.template_id, selectedTemplate?.recommended_user_prompt]);
 
   const stageOptions = useMemo(() => {
     const stages = new Set();

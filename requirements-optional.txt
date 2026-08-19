@@ -1,0 +1,4 @@
+# Optional local NPU/GPU and browser-backed skills.
+playwright==1.60.0
+torch==2.12.0
+transformers==4.57.6

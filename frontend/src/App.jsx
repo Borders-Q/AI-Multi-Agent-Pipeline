@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import {
   Activity,
@@ -26,7 +26,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import MermaidChart from './components/MermaidChart';
+const MermaidChart = lazy(() => import('./components/MermaidChart'));
 import ActionDock from './components/ActionDock';
 import SessionItem from './components/SessionItem';
 import AppTooltip from './components/ui/AppTooltip';
@@ -34,18 +34,19 @@ import BaseIconButton from './components/ui/BaseIconButton';
 import BasePopover from './components/ui/BasePopover';
 import ConfirmDialog from './components/ui/ConfirmDialog';
 import SidebarToggle from './components/ui/SidebarToggle';
-import Dashboard from './views/Dashboard';
-import Reports from './views/Reports';
-import RunHistory from './views/RunHistory';
-import SkillsStore from './views/SkillsStore';
-import WorkflowEditorPage from './views/WorkflowEditorPage';
-import WorkflowReplay from './views/WorkflowReplay';
-import Workflows from './views/Workflows';
+const Dashboard = lazy(() => import('./views/Dashboard'));
+const Reports = lazy(() => import('./views/Reports'));
+const RunHistory = lazy(() => import('./views/RunHistory'));
+const SkillsStore = lazy(() => import('./views/SkillsStore'));
+const WorkflowEditorPage = lazy(() => import('./views/WorkflowEditorPage'));
+const WorkflowReplay = lazy(() => import('./views/WorkflowReplay'));
+const Workflows = lazy(() => import('./views/Workflows'));
 import { zh } from './i18n/zh';
 import './index.css';
 import './codex-workbench.css';
+import { apiFetch, readApiError } from './api/client';
 
-const API_BASE = `http://${window.location.hostname}:8000`;
+const API_BASE = '';
 const WELCOME_MESSAGE = zh.welcome;
 const LOCAL_URL_PATTERN = /https?:\/\/(?:localhost|127(?:\.\d{1,3}){3}|\[::1\])(?::\d+)?(?:\/[^\s`"')<>\]]*)?/i;
 
@@ -740,7 +741,76 @@ function ChatComposer({
   );
 }
 
-function App() {
+function AuthGate({ children }) {
+  const [checking, setChecking] = useState(true);
+  const [authenticated, setAuthenticated] = useState(false);
+  const [token, setToken] = useState('');
+  const [error, setError] = useState('');
+
+  const checkAuth = useCallback(async () => {
+    try {
+      const response = await apiFetch('/api/auth/me', { cache: 'no-store' });
+      setAuthenticated(response.ok);
+    } catch {
+      setError('无法连接 SkyT 后端。');
+    } finally {
+      setChecking(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void checkAuth(); }, 0);
+    const handleRequired = () => setAuthenticated(false);
+    window.addEventListener('skyt:auth-required', handleRequired);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener('skyt:auth-required', handleRequired);
+    };
+  }, [checkAuth]);
+
+  const login = async (event) => {
+    event.preventDefault();
+    setError('');
+    try {
+      const response = await apiFetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ access_token: token.trim() }),
+      });
+      if (!response.ok) {
+        setError(await readApiError(response, '访问令牌不正确。'));
+        return;
+      }
+      setAuthenticated(true);
+      setToken('');
+    } catch {
+      setError('登录请求失败，请确认后端已启动。');
+    }
+  };
+
+  if (checking) return <div className="skyt-auth-screen">正在检查 SkyT 访问状态...</div>;
+  if (authenticated) return children;
+  return (
+    <main className="skyt-auth-screen">
+      <form className="skyt-auth-panel" onSubmit={login}>
+        <Sparkles size={24} />
+        <h1>登录天韬（SkyT）</h1>
+        <p>请输入项目根目录 `.env.local` 中的 `SKYT_ACCESS_TOKEN`。</p>
+        <input
+          type="password"
+          value={token}
+          onChange={(event) => setToken(event.target.value)}
+          placeholder="访问令牌"
+          autoFocus
+        />
+        {error && <div className="skyt-auth-error">{error}</div>}
+        <button type="submit" disabled={!token.trim()}>登录</button>
+      </form>
+    </main>
+  );
+}
+
+function WorkspaceApp() {
   const [messages, setMessages] = useState([{ role: 'agent', content: WELCOME_MESSAGE }]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -883,7 +953,7 @@ function App() {
     }
   };
 
-  const fetchSessionWorkflow = async (sid = sessionId, activate = false) => {
+  const fetchSessionWorkflow = useCallback(async (sid = sessionId, activate = false) => {
     try {
       const res = await fetch(`${API_BASE}/api/sessions/${sid}/workflow`);
       if (!res.ok) return null;
@@ -898,21 +968,19 @@ function App() {
       console.error(error);
       return null;
     }
-  };
+  }, [sessionId]);
 
   useEffect(() => {
     fetchModels();
     fetchSessions();
     fetchSkills();
     fetchWorkflowTemplates();
-    fetchSessionWorkflow(sessionId, true);
-    fetchHistory(sessionId);
   }, []);
 
   useEffect(() => {
     fetchHistory(sessionId);
     fetchSessionWorkflow(sessionId, true);
-  }, [sessionId]);
+  }, [sessionId, fetchSessionWorkflow]);
 
   const handleNewChat = () => {
     const nextId = Date.now().toString();
@@ -1479,7 +1547,11 @@ function App() {
           >
             {renderedContent}
           </ReactMarkdown>
-          {mermaidChart && <MermaidChart chart={mermaidChart} />}
+          {mermaidChart && (
+            <Suspense fallback={<div className="markdown-loading">图表加载中...</div>}>
+              <MermaidChart chart={mermaidChart} />
+            </Suspense>
+          )}
         </div>
       </ErrorBoundaryFallback>
     );
@@ -1515,7 +1587,8 @@ function App() {
           </div>
         </header>
 
-        <Routes>
+        <Suspense fallback={<div className="route-loading">页面加载中...</div>}>
+          <Routes>
           <Route path="/" element={(
             <section className="chat-workspace">
               <div className="chat-scroll" ref={chatContainerRef} onScroll={handleChatScroll}>
@@ -1565,15 +1638,16 @@ function App() {
               />
             </section>
           )} />
-          <Route path="/skills" element={<div className="routed-view"><SkillsStore skills={skills} enabledSkills={enabledSkills} setEnabledSkills={setEnabledSkills} onImportSkill={fetchSkills} /></div>} />
-          <Route path="/workflows" element={<div className="routed-view"><Workflows sessionId={sessionId} onRunWorkflowTemplate={handleRunWorkflowTemplate} workspacePath={workspacePath} onBindWorkspace={handleBindWorkspace} /></div>} />
+          <Route path="/skills" element={<div className="routed-view codex-core-view"><SkillsStore skills={skills} enabledSkills={enabledSkills} setEnabledSkills={setEnabledSkills} onImportSkill={fetchSkills} /></div>} />
+          <Route path="/workflows" element={<div className="routed-view codex-core-view"><Workflows sessionId={sessionId} onRunWorkflowTemplate={handleRunWorkflowTemplate} workspacePath={workspacePath} onBindWorkspace={handleBindWorkspace} /></div>} />
           <Route path="/workflows/editor" element={<div className="routed-view flush"><WorkflowEditorPage /></div>} />
-          <Route path="/dashboard" element={<div className="routed-view"><Dashboard /></div>} />
-          <Route path="/history" element={<div className="routed-view"><RunHistory /></div>} />
-          <Route path="/replay/session/:sessionId" element={<div className="routed-view"><WorkflowReplay /></div>} />
-          <Route path="/replay/:runId" element={<div className="routed-view"><WorkflowReplay /></div>} />
-          <Route path="/reports" element={<div className="routed-view"><Reports /></div>} />
-        </Routes>
+          <Route path="/dashboard" element={<div className="routed-view codex-core-view"><Dashboard /></div>} />
+          <Route path="/history" element={<div className="routed-view codex-core-view"><RunHistory /></div>} />
+          <Route path="/replay/session/:sessionId" element={<div className="routed-view codex-core-view"><WorkflowReplay /></div>} />
+          <Route path="/replay/:runId" element={<div className="routed-view codex-core-view"><WorkflowReplay /></div>} />
+          <Route path="/reports" element={<div className="routed-view codex-core-view"><Reports /></div>} />
+          </Routes>
+        </Suspense>
       </main>
 
       <ActionDock
@@ -1623,6 +1697,10 @@ function App() {
       />
     </div>
   );
+}
+
+function App() {
+  return <AuthGate><WorkspaceApp /></AuthGate>;
 }
 
 export default App;

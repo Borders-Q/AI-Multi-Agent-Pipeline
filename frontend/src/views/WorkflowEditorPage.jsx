@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Background,
   Controls,
@@ -209,7 +209,7 @@ export default function WorkflowEditorPage() {
   const { setAgents, validateWorkflow } = useWorkflowStore();
 
   useEffect(() => {
-    fetch(`http://${window.location.hostname}:8000/api/agents`)
+    fetch('/api/agents')
       .then((res) => res.json())
       .then((data) => {
         if (data.agents) setAgents(data.agents);

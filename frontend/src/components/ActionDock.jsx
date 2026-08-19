@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import {
   Activity,
   ArrowLeft,
@@ -19,27 +19,30 @@ import {
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import ActionCard from './ActionCard';
-import TerminalPanel from './TerminalPanel';
+const TerminalPanel = lazy(() => import('./TerminalPanel'));
 import BaseIconButton from './ui/BaseIconButton';
 import { zh } from '../i18n/zh';
 
-const API_BASE = `http://${window.location.hostname}:8000`;
+const API_BASE = '';
 const DEFAULT_BROWSER_URL = 'http://127.0.0.1:5173/dashboard';
 const clampDockWidth = (value) => Math.min(760, Math.max(320, Number(value) || 380));
 
 function BrowserPanel({ target, onRequestWide }) {
   const [url, setUrl] = useState(DEFAULT_BROWSER_URL);
   const [currentUrl, setCurrentUrl] = useState(DEFAULT_BROWSER_URL);
-  const [history, setHistory] = useState([DEFAULT_BROWSER_URL]);
+  const [, setHistory] = useState([DEFAULT_BROWSER_URL]);
   const [key, setKey] = useState(0);
 
   useEffect(() => {
     if (!target?.url) return;
     const next = /^https?:\/\//i.test(target.url) ? target.url : `https://${target.url}`;
-    setUrl(next);
-    setCurrentUrl(next);
-    setHistory((prev) => (prev[prev.length - 1] === next ? prev : [...prev, next]));
-    setKey((value) => value + 1);
+    const timer = window.setTimeout(() => {
+      setUrl(next);
+      setCurrentUrl(next);
+      setHistory((prev) => (prev[prev.length - 1] === next ? prev : [...prev, next]));
+      setKey((value) => value + 1);
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [target?.url, target?.ts]);
 
   const navigate = () => {
@@ -173,6 +176,7 @@ export default function ActionDock({
 }) {
   const [isOpen, setIsOpen] = useState(() => localStorage.getItem('skyt.actionDockOpen') !== 'false');
   const [mode, setMode] = useState('home');
+  const [dockLayout, setDockLayout] = useState(() => localStorage.getItem('skyt.actionDockLayout') || 'simple');
   const [queuedCommand, setQueuedCommand] = useState('');
   const [dockWidth, setDockWidth] = useState(() => clampDockWidth(localStorage.getItem('skyt.actionDockWidth') || 380));
   const dragStateRef = useRef(null);
@@ -182,20 +186,23 @@ export default function ActionDock({
   }, [isOpen]);
 
   useEffect(() => {
+    localStorage.setItem('skyt.actionDockLayout', dockLayout);
+  }, [dockLayout]);
+
+  useEffect(() => {
     localStorage.setItem('skyt.actionDockWidth', String(dockWidth));
   }, [dockWidth]);
 
   useEffect(() => {
-    if (isPlanPanelOpen) setIsOpen(true);
-  }, [isPlanPanelOpen]);
-
-  useEffect(() => {
     if (!browserTarget?.url) return;
-    setIsOpen(true);
-    setDockWidth((value) => clampDockWidth(Math.max(value, 680)));
-    if (isPlanPanelOpen) onPlanClose?.();
-    setMode('browser');
-  }, [browserTarget?.url, browserTarget?.ts]);
+    const timer = window.setTimeout(() => {
+      setIsOpen(true);
+      setDockWidth((value) => clampDockWidth(Math.max(value, 680)));
+      if (isPlanPanelOpen) onPlanClose?.();
+      setMode('browser');
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [browserTarget?.url, browserTarget?.ts, isPlanPanelOpen, onPlanClose]);
 
   const startResize = (event) => {
     event.preventDefault();
@@ -219,12 +226,12 @@ export default function ActionDock({
   };
 
   const openMode = (nextMode) => {
-    if (!isOpen) setIsOpen(true);
+    if (!panelOpen) setIsOpen(true);
     if (isPlanPanelOpen && nextMode !== 'plan') onPlanClose?.();
     setMode(nextMode);
   };
 
-  const recommendations = useMemo(() => [
+  const recommendations = [
     { label: '打开本地数据看板', icon: <Globe2 size={14} />, action: () => openMode('browser') },
     {
       label: workspacePath ? '在 PowerShell 运行构建' : '先绑定工作区',
@@ -233,9 +240,10 @@ export default function ActionDock({
     },
     { label: '查看运行历史', icon: <Activity size={14} />, action: () => onNavigate('/history') },
     { label: '新建对话', icon: <Play size={14} />, action: onNewChat },
-  ], [workspacePath, onBindWorkspace, onNavigate, onNewChat, isOpen, isPlanPanelOpen]);
+  ];
 
   const visibleMode = isPlanPanelOpen ? 'plan' : mode;
+  const panelOpen = isOpen || isPlanPanelOpen;
   const cards = [
     { key: 'browser', label: '浏览器', description: '打开本地或网页', icon: <Globe2 size={20} />, onClick: () => openMode('browser') },
     { key: 'terminal', label: 'PowerShell', description: '工作区终端', icon: <TerminalSquare size={20} />, onClick: () => openMode('terminal') },
@@ -243,7 +251,7 @@ export default function ActionDock({
     { key: 'workflow', label: '执行/修复', description: '运行与问题定位', icon: <Wrench size={20} />, onClick: () => openMode('workflow') },
   ];
 
-  if (!isOpen) {
+  if (!panelOpen) {
     return (
       <aside className="action-dock collapsed" aria-label="行动面板">
         <BaseIconButton className="dock-collapse-button" label="展开行动面板" tooltip="展开行动面板" tooltipSide="left" onClick={() => setIsOpen(true)}>
@@ -269,32 +277,62 @@ export default function ActionDock({
   }
 
   return (
-    <aside className="action-dock open" aria-label="行动面板" style={{ width: dockWidth, minWidth: dockWidth }}>
+    <aside className={`action-dock open layout-${dockLayout}`} aria-label="行动面板" style={{ width: dockWidth, minWidth: dockWidth }}>
       <div className="dock-resize-handle" role="separator" aria-label="调整行动面板宽度" onPointerDown={startResize} />
       <div className="action-dock-header">
         <div>
           <span>行动面板</span>
           <strong>天韬（SkyT） 工作台</strong>
         </div>
-        <BaseIconButton className="dock-collapse-button" label="折叠行动面板" tooltip="折叠行动面板" tooltipSide="left" onClick={() => setIsOpen(false)}>
-          <ChevronRight size={18} />
-        </BaseIconButton>
+        <div className="dock-header-actions">
+          <BaseIconButton
+            className="dock-layout-button"
+            label={dockLayout === 'simple' ? '切换详细模式' : '切换简洁模式'}
+            tooltip={dockLayout === 'simple' ? '切换详细模式' : '切换简洁模式'}
+            tooltipSide="left"
+            onClick={() => setDockLayout((value) => (value === 'simple' ? 'detailed' : 'simple'))}
+          >
+            <LayoutTemplate size={16} />
+          </BaseIconButton>
+          <BaseIconButton className="dock-collapse-button" label="折叠行动面板" tooltip="折叠行动面板" tooltipSide="left" onClick={() => setIsOpen(false)}>
+            <ChevronRight size={18} />
+          </BaseIconButton>
+        </div>
       </div>
 
       <span className="autonomy-pill"><ShieldCheck size={14} /> {zh.autonomyMode.supervised_auto}</span>
 
-      <div className="action-grid">
-        {cards.map((card) => (
-          <ActionCard
-            key={card.key}
-            icon={card.icon}
-            label={card.label}
-            description={card.description}
-            active={visibleMode === card.key || (card.key === 'workspace' && Boolean(workspacePath) && visibleMode === 'home')}
-            onClick={card.onClick}
-          />
-        ))}
-      </div>
+      {dockLayout === 'detailed' ? (
+        <div className="action-grid">
+          {cards.map((card) => (
+            <ActionCard
+              key={card.key}
+              icon={card.icon}
+              label={card.label}
+              description={card.description}
+              active={visibleMode === card.key || (card.key === 'workspace' && Boolean(workspacePath) && visibleMode === 'home')}
+              onClick={card.onClick}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="action-list">
+          {cards.map((card) => (
+            <button
+              key={card.key}
+              type="button"
+              className={`action-list-item ${visibleMode === card.key || (card.key === 'workspace' && Boolean(workspacePath) && visibleMode === 'home') ? 'active' : ''}`}
+              onClick={card.onClick}
+            >
+              <span className="action-card-icon">{card.icon}</span>
+              <span className="action-list-copy">
+                <strong>{card.label}</strong>
+                <em>{card.description}</em>
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {visibleMode === 'home' && (
         <div className="dock-panel recommendation-panel">
@@ -309,12 +347,14 @@ export default function ActionDock({
       )}
       {visibleMode === 'browser' && <BrowserPanel target={browserTarget} onRequestWide={() => setDockWidth(clampDockWidth(760))} />}
       {visibleMode === 'terminal' && (
-        <TerminalPanel
-          active={visibleMode === 'terminal'}
-          workspacePath={workspacePath}
-          queuedCommand={queuedCommand}
-          onQueuedCommandConsumed={() => setQueuedCommand('')}
-        />
+        <Suspense fallback={<div className="terminal-panel"><div className="terminal-status">终端加载中...</div></div>}>
+          <TerminalPanel
+            active={visibleMode === 'terminal'}
+            workspacePath={workspacePath}
+            queuedCommand={queuedCommand}
+            onQueuedCommandConsumed={() => setQueuedCommand('')}
+          />
+        </Suspense>
       )}
       {visibleMode === 'workspace' && <WorkspacePanel workspacePath={workspacePath} onBindWorkspace={onBindWorkspace} />}
       {visibleMode === 'workflow' && <WorkflowPanel workflow={activeWorkflow} logs={actionLogs} />}

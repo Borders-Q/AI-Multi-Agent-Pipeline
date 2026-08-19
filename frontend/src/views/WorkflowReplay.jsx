@@ -1,11 +1,11 @@
-import React, { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Play, Pause, FastForward, RotateCcw, Cpu, Zap, Activity, Clock, Terminal, Search, Filter, ShieldAlert, Code, Copy, ChevronDown, ChevronRight } from 'lucide-react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import WorkflowVisualizer from '../components/WorkflowVisualizer';
 
-const API_BASE = `http://${window.location.hostname}:8000`;
+const API_BASE = '';
 
 const INPUT_PAYLOAD_KEYS = new Set([
   'args',
@@ -80,7 +80,7 @@ function safeParsePayload(raw) {
 
   try {
     let parsed = JSON.parse(trimmed);
-    if (typeof parsed === 'string' && /^[\[{]/.test(parsed.trim())) {
+    if (typeof parsed === 'string' && /^[[{]/.test(parsed.trim())) {
       try {
         parsed = JSON.parse(parsed);
       } catch {
@@ -345,7 +345,8 @@ export default function WorkflowReplay() {
         });
       }, 800 / speed);
     } else if (playing && currentIndex >= events.length - 1) {
-      setPlaying(false);
+      const timer = setTimeout(() => setPlaying(false), 0);
+      return () => clearTimeout(timer);
     }
     return () => clearTimeout(timer);
   }, [playing, currentIndex, events, speed]);

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -12,7 +12,7 @@ export default function Reports() {
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
-    fetch(`http://${window.location.hostname}:8000/api/reports`)
+    fetch('/api/reports')
       .then(res => res.json())
       .then(data => {
         setReports(data.reports || []);
@@ -128,7 +128,7 @@ export default function Reports() {
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={{
-                  code({ node, inline, className, children, ...props }) {
+                  code({ inline, className, children, ...props }) {
                     const match = /language-(\w+)/.exec(className || '')
                     return !inline && match ? (
                       <div style={{ borderRadius: '8px', overflow: 'hidden', margin: '24px 0', border: '1px solid #313244' }}>
@@ -151,13 +151,13 @@ export default function Reports() {
                       </code>
                     )
                   },
-                  h2: ({node, ...props}) => <h2 style={{ color: '#89b4fa', marginTop: '32px', borderBottom: '1px solid #313244', paddingBottom: '8px' }} {...props} />,
-                  h3: ({node, ...props}) => <h3 style={{ color: '#f5c2e7', marginTop: '24px' }} {...props} />,
-                  a: ({node, ...props}) => <a style={{ color: '#89dceb', textDecoration: 'none' }} {...props} />,
-                  blockquote: ({node, ...props}) => <blockquote style={{ borderLeft: '4px solid #cba6f7', margin: '16px 0', padding: '8px 16px', background: 'rgba(203, 166, 247, 0.1)', color: '#bac2de', borderRadius: '0 8px 8px 0' }} {...props} />,
-                  table: ({node, ...props}) => <table style={{ width: '100%', borderCollapse: 'collapse', margin: '24px 0' }} {...props} />,
-                  th: ({node, ...props}) => <th style={{ background: 'rgba(30, 30, 46, 0.8)', padding: '12px', border: '1px solid #313244', color: '#cba6f7' }} {...props} />,
-                  td: ({node, ...props}) => <td style={{ padding: '12px', border: '1px solid #313244' }} {...props} />
+                  h2: (props) => <h2 style={{ color: '#89b4fa', marginTop: '32px', borderBottom: '1px solid #313244', paddingBottom: '8px' }} {...props} />,
+                  h3: (props) => <h3 style={{ color: '#f5c2e7', marginTop: '24px' }} {...props} />,
+                  a: (props) => <a style={{ color: '#89dceb', textDecoration: 'none' }} {...props} />,
+                  blockquote: (props) => <blockquote style={{ borderLeft: '4px solid #cba6f7', margin: '16px 0', padding: '8px 16px', background: 'rgba(203, 166, 247, 0.1)', color: '#bac2de', borderRadius: '0 8px 8px 0' }} {...props} />,
+                  table: (props) => <table style={{ width: '100%', borderCollapse: 'collapse', margin: '24px 0' }} {...props} />,
+                  th: (props) => <th style={{ background: 'rgba(30, 30, 46, 0.8)', padding: '12px', border: '1px solid #313244', color: '#cba6f7' }} {...props} />,
+                  td: (props) => <td style={{ padding: '12px', border: '1px solid #313244' }} {...props} />
                 }}
               >
                 {selectedReport.content}

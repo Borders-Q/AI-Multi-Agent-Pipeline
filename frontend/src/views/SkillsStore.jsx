@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { Activity, Sparkles, Search, X, Code, Globe, BarChart3, Terminal, Wrench, Cpu, Package, Plug, Plus, ExternalLink, Settings, GitBranch } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Activity, Sparkles, Search, X, GitBranch } from 'lucide-react';
 import Editor from '@monaco-editor/react';
 
-const API_BASE = `http://${window.location.hostname}:8000`;
+const API_BASE = '';
 
 const SKILL_CATEGORIES = {
   all: { label: '全部技能', icon: '🔧' },
@@ -75,9 +75,11 @@ SCHEMA = {
 
   useEffect(() => {
     if (skillTab === 'market' && marketSkills.length === 0) {
-      fetchMarketSkills();
+      const timer = window.setTimeout(() => fetchMarketSkills(), 0);
+      return () => window.clearTimeout(timer);
     }
-  }, [skillTab]);
+    return undefined;
+  }, [skillTab, marketSkills.length]);
 
   const handleDownloadSkill = async (skillId) => {
     setInstallingSkill(skillId);

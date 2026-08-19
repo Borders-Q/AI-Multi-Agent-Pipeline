@@ -1,6 +1,14 @@
 import os
 import re
 import subprocess
+import secrets
+import logging
+from pathlib import Path
+
+from skyt_platform.config import settings
+from skyt_platform.workspace_policy import WorkspaceViolation, canonical_root, resolve_inside
+
+logger = logging.getLogger(__name__)
 
 WORKSPACE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "workspace"))
 PROTECTED_FILENAMES = {".env", ".env.local", ".env.production", "id_rsa", "id_ed25519"}
@@ -22,8 +30,11 @@ DANGEROUS_COMMAND_PATTERNS = [
 ]
 
 def _approval_required(reason: str, payload: str) -> str:
+    approval_id = f"APR_{secrets.token_urlsafe(10)}"
+    logger.warning("Approval required id=%s reason=%s", approval_id, reason)
     return (
         "[APPROVAL_REQUIRED]\n"
+        f"Approval-ID: {approval_id}\n"
         f"Reason: {reason}\n"
         f"Payload: {payload}\n"
         "天韬（SkyT） stopped before executing this high-risk automatic action. Ask the user to confirm explicitly."
@@ -43,86 +54,55 @@ def _is_dangerous_command(command: str) -> str | None:
             return pattern
     return None
 
-def _resolve_path(path_str: str) -> str:
-    """Resolve a path. If it's absolute, use it directly. Otherwise, resolve relative to workspace."""
-    if os.path.isabs(path_str):
-        return os.path.normpath(path_str)
-    
-    # Ensure workspace exists
-    os.makedirs(WORKSPACE_DIR, exist_ok=True)
-    
-    # Resolve absolute path
-    abs_path = os.path.abspath(os.path.join(WORKSPACE_DIR, path_str))
-    return abs_path
+def _resolve_path(path_str: str, workspace: str = None) -> str:
+    """Resolve a path and prevent traversal outside the active workspace."""
+    root = workspace or WORKSPACE_DIR
+    if not os.path.exists(root):
+        os.makedirs(root, exist_ok=True)
+    root_path = canonical_root(root)
+    raw = str(path_str or ".")
+    if os.path.isabs(raw) and not settings.allow_absolute_paths:
+        target = resolve_inside(root_path, raw)
+    else:
+        target = resolve_inside(root_path, raw)
+    return os.fspath(target)
 
-def write_file(path: str, content: str) -> str:
+def write_file(path: str, content: str, workspace: str = None) -> str:
     """Write content to a file. Supports absolute paths or relative to workspace."""
     try:
-        abs_path = _resolve_path(path)
+        abs_path = _resolve_path(path, workspace)
         if _is_protected_path(abs_path):
             return _approval_required("protected file write", abs_path)
         os.makedirs(os.path.dirname(abs_path), exist_ok=True)
         with open(abs_path, "w", encoding="utf-8") as f:
             f.write(content)
             
-        extra_msg = ""
-        # Automatically install python dependencies if a .py file is written
-        if abs_path.endswith('.py'):
-            import ast
-            import sys
-            import threading
-            try:
-                tree = ast.parse(content)
-                imports = set()
-                for node in ast.walk(tree):
-                    if isinstance(node, ast.Import):
-                        for name in node.names:
-                            imports.add(name.name.split('.')[0])
-                    elif isinstance(node, ast.ImportFrom):
-                        if node.level == 0 and node.module:
-                            imports.add(node.module.split('.')[0])
-                
-                stdlib = sys.stdlib_module_names if hasattr(sys, 'stdlib_module_names') else set()
-                external = [imp for imp in imports if imp not in stdlib and imp not in ['__future__']]
-                
-                # Patch for Python 3.14 alpha users: pygame fails to build from source, must use pygame-ce
-                external = ['pygame-ce' if imp == 'pygame' else imp for imp in external]
-                
-                if external:
-                    # Run pip install synchronously in a visible CMD window so the user sees the progress
-                    try:
-                        import sys
-                        cmd_str = f'start /wait cmd.exe /c "title 天韬（SkyT） Auto-Installer: Installing Dependencies && echo [天韬（SkyT）] Automatically installing missing dependencies... && echo. && "{sys.executable}" -m pip install {" ".join(external)} -i https://pypi.tuna.tsinghua.edu.cn/simple && echo. && echo [天韬（SkyT）] Installation Complete! && timeout /t 2"'
-                        subprocess.run(cmd_str, shell=True)
-                    except:
-                        pass
-                    
-                    extra_msg = f" (Auto-installed dependencies: {', '.join(external)})"
-            except Exception as ast_e:
-                extra_msg = f" (Failed to parse dependencies: {str(ast_e)})"
-                
-        return f"File '{path}' successfully written to {abs_path}.{extra_msg}"
+        return f"File '{path}' successfully written to {abs_path}."
+    except WorkspaceViolation as e:
+        return _approval_required("workspace boundary violation", str(e))
     except Exception as e:
         return f"Error writing file '{path}': {str(e)}"
 
-def read_file(path: str) -> str:
+def read_file(path: str, workspace: str = None) -> str:
     """Read content from a file. Supports absolute paths or relative to workspace."""
     try:
-        abs_path = _resolve_path(path)
+        abs_path = _resolve_path(path, workspace)
         if not os.path.exists(abs_path):
             return f"Error: File '{path}' does not exist."
         with open(abs_path, "r", encoding="utf-8") as f:
             return f.read()
+    except WorkspaceViolation as e:
+        return _approval_required("workspace boundary violation", str(e))
     except Exception as e:
         return f"Error reading file '{path}': {str(e)}"
 
-def run_command(command: str, cwd: str = None) -> str:
+def run_command(command: str, cwd: str = None, workspace: str = None) -> str:
     """Run a shell command in the specified directory or workspace."""
     try:
         dangerous_match = _is_dangerous_command(command)
         if dangerous_match:
             return _approval_required(f"dangerous command matched `{dangerous_match}`", command)
-        target_cwd = _resolve_path(cwd) if cwd else WORKSPACE_DIR
+        target_cwd = _resolve_path(cwd or ".", workspace)
         os.makedirs(target_cwd, exist_ok=True)
         result = subprocess.run(
             command,
@@ -136,21 +116,30 @@ def run_command(command: str, cwd: str = None) -> str:
         output = result.stdout
         if result.stderr:
             output += f"\n[STDERR]\n{result.stderr}"
+
+        max_output = 256 * 1024
+        if len(output) > max_output:
+            output = output[:max_output] + "\n[OUTPUT_TRUNCATED]"
             
         if not output.strip():
             output = "[Command executed successfully with no output]"
             
         return output
+    except WorkspaceViolation as e:
+        return _approval_required("workspace boundary violation", str(e))
     except subprocess.TimeoutExpired:
         return f"Error: Command timed out after 30 seconds."
     except Exception as e:
         return f"Error running command '{command}': {str(e)}"
 
-def start_background_service(command: str, cwd: str = None) -> str:
+def start_background_service(command: str, cwd: str = None, workspace: str = None) -> str:
     """Start a command in the background (e.g., a web server) and return its PID."""
     try:
         import time
-        target_cwd = _resolve_path(cwd) if cwd else WORKSPACE_DIR
+        dangerous_match = _is_dangerous_command(command)
+        if dangerous_match:
+            return _approval_required(f"dangerous command matched `{dangerous_match}`", command)
+        target_cwd = _resolve_path(cwd or ".", workspace)
         os.makedirs(target_cwd, exist_ok=True)
         
         # We use subprocess.Popen to run in background
@@ -171,6 +160,8 @@ def start_background_service(command: str, cwd: str = None) -> str:
             return f"Error: Background service crashed immediately with exit code {process.returncode}.\nStderr: {stderr}"
             
         return f"Background service started successfully with PID {process.pid}. Command: '{command}'. Please provide the local URL to the user in your final response."
+    except WorkspaceViolation as e:
+        return _approval_required("workspace boundary violation", str(e))
     except Exception as e:
         return f"Error starting background service '{command}': {str(e)}"
 
@@ -201,6 +192,7 @@ def ask_user_for_directory() -> str:
 def import_local_skill(path: str) -> str:
     """Read a python file and import it into 天韬（SkyT） as a new skill dynamically."""
     try:
+        return _approval_required("dynamic Python skill import", path)
         abs_path = _resolve_path(path)
         if not os.path.exists(abs_path):
             return f"Error: File '{path}' does not exist."
@@ -240,6 +232,10 @@ FS_TOOLS_SCHEMA = [
                     "content": {
                         "type": "string",
                         "description": "The complete text content to write into the file."
+                    },
+                    "workspace": {
+                        "type": "string",
+                        "description": "Optional canonical project workspace. Relative paths are resolved inside it."
                     }
                 },
                 "required": ["path", "content"]
@@ -257,6 +253,10 @@ FS_TOOLS_SCHEMA = [
                     "path": {
                         "type": "string",
                         "description": "The absolute or relative path to the file to read."
+                    },
+                    "workspace": {
+                        "type": "string",
+                        "description": "Optional canonical project workspace."
                     }
                 },
                 "required": ["path"]
@@ -278,6 +278,10 @@ FS_TOOLS_SCHEMA = [
                     "cwd": {
                         "type": "string",
                         "description": "Optional. The working directory to execute the command in. If absolute, it uses that directory. If relative, it's relative to the workspace."
+                    },
+                    "workspace": {
+                        "type": "string",
+                        "description": "Optional canonical project workspace."
                     }
                 },
                 "required": ["command"]
@@ -299,6 +303,10 @@ FS_TOOLS_SCHEMA = [
                     "cwd": {
                         "type": "string",
                         "description": "Optional. The working directory."
+                    },
+                    "workspace": {
+                        "type": "string",
+                        "description": "Optional canonical project workspace."
                     }
                 },
                 "required": ["command"]

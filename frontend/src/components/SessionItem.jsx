@@ -1,4 +1,3 @@
-import React from 'react';
 import { Trash2 } from 'lucide-react';
 import BaseIconButton from './ui/BaseIconButton';
 import { zh } from '../i18n/zh';
