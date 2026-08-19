@@ -15,7 +15,7 @@ if (Test-Path $venvPython) {
 }
 
 # Start all services in parallel
-$server = Start-Process -FilePath $pythonExe -ArgumentList "-m", "uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8000" -WorkingDirectory $projectRoot -PassThru -WindowStyle Hidden
+$server = Start-Process -FilePath $pythonExe -ArgumentList "-m", "uvicorn", "server:app", "--host", "127.0.0.1", "--port", "8000" -WorkingDirectory $projectRoot -PassThru -WindowStyle Hidden
 $frontend = Start-Process -FilePath "cmd" -ArgumentList "/c", "npm", "run", "dev", "--", "--host", "127.0.0.1" -WorkingDirectory $frontendDir -PassThru -WindowStyle Hidden
 $registry = Start-Process -FilePath $pythonExe -ArgumentList "registry_server.py" -WorkingDirectory $projectRoot -PassThru -WindowStyle Hidden
 

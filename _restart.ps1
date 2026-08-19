@@ -68,7 +68,7 @@ Write-Host "`n【第二阶段：重新启动服务】" -ForegroundColor Cyan
 
 Write-Host "[1/3] 启动后端服务 (FastAPI)..." -ForegroundColor Yellow
 
-Start-Process -FilePath "cmd.exe" -ArgumentList "/c", "python", "-m", "uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8000" -WorkingDirectory $baseDir -WindowStyle Minimized
+Start-Process -FilePath "cmd.exe" -ArgumentList "/c", "python", "-m", "uvicorn", "server:app", "--host", "127.0.0.1", "--port", "8000" -WorkingDirectory $baseDir -WindowStyle Minimized
 
 
 
@@ -131,4 +131,3 @@ Write-Host "2. 本控制台窗口将在 3 秒后自动关闭..." -ForegroundColo
 Start-Sleep -Seconds 3
 
 exit
-

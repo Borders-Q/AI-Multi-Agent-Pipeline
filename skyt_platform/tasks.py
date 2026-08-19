@@ -84,11 +84,26 @@ class TaskManager:
                 finally:
                     heartbeat_task.cancel()
                     await asyncio.gather(heartbeat_task, return_exceptions=True)
-                db.complete_task(task_id, result if isinstance(result, dict) else {"value": result})
+                result_payload = result if isinstance(result, dict) else {"value": result}
+                if result_payload.get("success") is False or result_payload.get("status") == "failed":
+                    # A handler may finish cleanly while reporting a domain
+                    # failure. Do not mark such work as an infrastructure
+                    # success, and allow the handler to opt out of retries.
+                    db.fail_task(
+                        task_id,
+                        str(result_payload.get("error") or "任务执行失败"),
+                        retry=not bool(result_payload.get("non_retryable")),
+                    )
+                else:
+                    db.complete_task(task_id, result_payload)
                 final_task = db.get_task(task_id) or {}
                 final_status = final_task.get("status")
                 db.save_task_event(task_id, final_status or "succeeded", {"worker_id": self.worker_id})
             except asyncio.CancelledError:
+                if db.is_task_cancel_requested(task_id):
+                    db.mark_task_cancelled(task_id)
+                    db.save_task_event(task_id, "cancelled", {"worker_id": self.worker_id})
+                    continue
                 raise
             except Exception as exc:
                 logger.exception("Task failed task_id=%s type=%s", task_id, task.get("task_type"))

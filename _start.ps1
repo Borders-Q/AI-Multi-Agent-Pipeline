@@ -36,7 +36,7 @@ Write-Host "==================================="
 
 Write-Host "[1/3] 启动后端服务 (FastAPI)..." -ForegroundColor Yellow
 
-Start-Process -FilePath $pythonExe -ArgumentList "-m", "uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8000" -WorkingDirectory $baseDir -WindowStyle Minimized
+Start-Process -FilePath $pythonExe -ArgumentList "-m", "uvicorn", "server:app", "--host", "127.0.0.1", "--port", "8000" -WorkingDirectory $baseDir -WindowStyle Minimized
 
 
 
@@ -81,12 +81,7 @@ try {
     throw "后端未通过健康检查：$($_.Exception.Message)"
 }
 
-$envLocal = Join-Path $baseDir ".env.local"
-if (Test-Path $envLocal) {
-    Write-Host "本地访问令牌已写入：$envLocal" -ForegroundColor Cyan
-} else {
-    Write-Host "未找到 .env.local；后端启动时应自动生成访问令牌。" -ForegroundColor Yellow
-}
+Write-Host "本机模式已启用：无需输入访问令牌，后端仅接受本机连接。" -ForegroundColor Cyan
 
 
 

@@ -1,0 +1,30 @@
+[
+  {
+    "id": "code-fix",
+    "category": "code",
+    "title": "定位并修复一个现有 Python 项目的回归",
+    "goal": "读取项目、定位失败原因、修改代码、运行测试并交付差异与验证证据。",
+    "required_gates": ["python_compile", "tests", "evidence_recorded"]
+  },
+  {
+    "id": "research-brief",
+    "category": "research",
+    "title": "形成可追溯技术调研简报",
+    "goal": "比较多个方案，给出适用边界、风险和带来源的推荐。",
+    "required_gates": ["source_check", "evidence_recorded"]
+  },
+  {
+    "id": "data-analysis",
+    "category": "analysis",
+    "title": "分析一份结构化数据并提出可执行结论",
+    "goal": "检查数据质量、完成分析、解释异常并产出可复核结论。",
+    "required_gates": ["output_present", "evidence_recorded"]
+  },
+  {
+    "id": "product-doc",
+    "category": "documentation",
+    "title": "把工程变更整理成发布文档",
+    "goal": "根据变更和验证结果生成结构清晰、事实准确、可执行的交付文档。",
+    "required_gates": ["output_present", "evidence_recorded"]
+  }
+]

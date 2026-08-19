@@ -14,6 +14,7 @@ import {
   HelpCircle,
   Menu,
   Plus,
+  RefreshCw,
   Send,
   Settings,
   SlidersHorizontal,
@@ -24,9 +25,8 @@ import {
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 const MermaidChart = lazy(() => import('./components/MermaidChart'));
+const CodeBlock = lazy(() => import('./components/CodeBlock'));
 import ActionDock from './components/ActionDock';
 import SessionItem from './components/SessionItem';
 import AppTooltip from './components/ui/AppTooltip';
@@ -40,6 +40,8 @@ const RunHistory = lazy(() => import('./views/RunHistory'));
 const SkillsStore = lazy(() => import('./views/SkillsStore'));
 const WorkflowEditorPage = lazy(() => import('./views/WorkflowEditorPage'));
 const WorkflowReplay = lazy(() => import('./views/WorkflowReplay'));
+const WorkflowRunConsole = lazy(() => import('./views/WorkflowRunConsole'));
+const WorkflowEvaluations = lazy(() => import('./views/WorkflowEvaluations'));
 const Workflows = lazy(() => import('./views/Workflows'));
 import { zh } from './i18n/zh';
 import './index.css';
@@ -744,13 +746,24 @@ function ChatComposer({
 function AuthGate({ children }) {
   const [checking, setChecking] = useState(true);
   const [authenticated, setAuthenticated] = useState(false);
+  const [authMode, setAuthMode] = useState('local');
   const [token, setToken] = useState('');
   const [error, setError] = useState('');
 
   const checkAuth = useCallback(async () => {
+    setChecking(true);
+    setError('');
     try {
       const response = await apiFetch('/api/auth/me', { cache: 'no-store' });
+      let payload = {};
+      try {
+        payload = await response.clone().json();
+      } catch {
+        payload = {};
+      }
+      if (payload.auth_mode) setAuthMode(payload.auth_mode);
       setAuthenticated(response.ok);
+      if (!response.ok) setError(payload.detail || '无法验证 SkyT 访问状态。');
     } catch {
       setError('无法连接 SkyT 后端。');
     } finally {
@@ -790,12 +803,26 @@ function AuthGate({ children }) {
 
   if (checking) return <div className="skyt-auth-screen">正在检查 SkyT 访问状态...</div>;
   if (authenticated) return children;
+  if (authMode !== 'token') {
+    return (
+      <main className="skyt-auth-screen">
+        <section className="skyt-auth-panel">
+          <Sparkles size={24} />
+          <h1>无法从本机访问 SkyT</h1>
+          <p>{error || '当前服务只接受运行 SkyT 的电脑发起的访问。'}</p>
+          <button type="button" onClick={() => void checkAuth()}>
+            <RefreshCw size={15} /> 重新检查
+          </button>
+        </section>
+      </main>
+    );
+  }
   return (
     <main className="skyt-auth-screen">
       <form className="skyt-auth-panel" onSubmit={login}>
         <Sparkles size={24} />
         <h1>登录天韬（SkyT）</h1>
-        <p>请输入项目根目录 `.env.local` 中的 `SKYT_ACCESS_TOKEN`。</p>
+        <p>当前部署启用了令牌模式，请输入部署管理员提供的访问令牌。</p>
         <input
           type="password"
           value={token}
@@ -804,7 +831,7 @@ function AuthGate({ children }) {
           autoFocus
         />
         {error && <div className="skyt-auth-error">{error}</div>}
-        <button type="submit" disabled={!token.trim()}>登录</button>
+        <button type="submit" disabled={!token.trim()}><Check size={15} /> 登录</button>
       </form>
     </main>
   );
@@ -1535,9 +1562,9 @@ function WorkspaceApp() {
                 return !inline && match ? (
                   <div className="code-card">
                     <div className="code-header">{match[1]}</div>
-                    <SyntaxHighlighter {...props} style={vscDarkPlus} language={match[1]} PreTag="div" customStyle={{ margin: 0 }} showLineNumbers>
+                    <CodeBlock {...props} language={match[1]} PreTag="div" customStyle={{ margin: 0 }} showLineNumbers>
                       {String(children).replace(/\n$/, '')}
-                    </SyntaxHighlighter>
+                    </CodeBlock>
                   </div>
                 ) : (
                   <code {...props} className={className}>{children}</code>
@@ -1641,6 +1668,8 @@ function WorkspaceApp() {
           <Route path="/skills" element={<div className="routed-view codex-core-view"><SkillsStore skills={skills} enabledSkills={enabledSkills} setEnabledSkills={setEnabledSkills} onImportSkill={fetchSkills} /></div>} />
           <Route path="/workflows" element={<div className="routed-view codex-core-view"><Workflows sessionId={sessionId} onRunWorkflowTemplate={handleRunWorkflowTemplate} workspacePath={workspacePath} onBindWorkspace={handleBindWorkspace} /></div>} />
           <Route path="/workflows/editor" element={<div className="routed-view flush"><WorkflowEditorPage /></div>} />
+          <Route path="/workflows/runs/:runId" element={<div className="routed-view codex-core-view"><WorkflowRunConsole /></div>} />
+          <Route path="/workflows/evaluations" element={<div className="routed-view codex-core-view"><WorkflowEvaluations /></div>} />
           <Route path="/dashboard" element={<div className="routed-view codex-core-view"><Dashboard /></div>} />
           <Route path="/history" element={<div className="routed-view codex-core-view"><RunHistory /></div>} />
           <Route path="/replay/session/:sessionId" element={<div className="routed-view codex-core-view"><WorkflowReplay /></div>} />

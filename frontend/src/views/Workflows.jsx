@@ -18,7 +18,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import { Blocks, Bot, Download, FileText, GitBranch, History, Play, RefreshCw, Search, Settings, Sparkles } from 'lucide-react';
+import { Blocks, Bot, Download, FileText, GitBranch, History, Play, RefreshCw, Search, Settings, Sparkles, Target } from 'lucide-react';
 import { useWorkflowStore } from '../store/workflowStore';
 
 const API_BASE = '';
@@ -159,6 +159,10 @@ export default function Workflows({ sessionId = 'default', onRunWorkflowTemplate
   const [installedSkills, setInstalledSkills] = useState([]);
   const [selectedSkillName, setSelectedSkillName] = useState('');
   const [importing, setImporting] = useState(false);
+  const [compilerOpen, setCompilerOpen] = useState(false);
+  const [compilerPrompt, setCompilerPrompt] = useState('');
+  const [compiling, setCompiling] = useState(false);
+  const [compiledResult, setCompiledResult] = useState(null);
 
   const loadWorkflow = useWorkflowStore((state) => state.loadWorkflow);
   const clearWorkflow = useWorkflowStore((state) => state.clearWorkflow);
@@ -386,6 +390,58 @@ export default function Workflows({ sessionId = 'default', onRunWorkflowTemplate
     }
   };
 
+  const handleCompile = async () => {
+    if (!compilerPrompt.trim()) return;
+    setCompiling(true);
+    setNotice('');
+    try {
+      const res = await fetch(`${API_BASE}/api/workflows/compile`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: compilerPrompt.trim(), title: '自然语言编译工作流' }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+      setCompiledResult(data);
+    } catch (e) {
+      setNotice(`工作流编译失败：${e.message}`);
+    } finally {
+      setCompiling(false);
+    }
+  };
+
+  const handleRunCompiled = async () => {
+    if (!compiledResult?.workflow_spec) return;
+    setCompiling(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/workflows/runs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ workflow_spec: compiledResult.workflow_spec, input: { task: compilerPrompt.trim() }, session_id: sessionId, workspace: workspacePath || null }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.detail?.message || data.detail || `HTTP ${res.status}`);
+      setCompilerOpen(false);
+      navigate(`/workflows/runs/${encodeURIComponent(data.run_id)}`);
+    } catch (e) {
+      setNotice(`工作流启动失败：${e.message}`);
+    } finally {
+      setCompiling(false);
+    }
+  };
+
+  const handleOpenCompiledEditor = () => {
+    if (!compiledResult?.legacy_workflow) return;
+    loadWorkflow(JSON.stringify(compiledResult.legacy_workflow), {
+      title: compiledResult.workflow_spec?.title || '自然语言编译工作流',
+      description: compiledResult.workflow_spec?.description || '',
+      stage: 'Draft',
+      tags: 'Compiled,AI,Workflow',
+    });
+    setCompilerOpen(false);
+    navigate('/workflows/editor');
+  };
+
   return (
     <Box sx={pageSx}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 2, mb: 3 }}>
@@ -407,8 +463,14 @@ export default function Workflows({ sessionId = 'default', onRunWorkflowTemplate
           <Button variant="outlined" startIcon={<RefreshCw size={18} />} onClick={loadTemplates} disabled={loading} sx={{ borderRadius: '20px' }}>
             刷新
           </Button>
+          <Button variant="outlined" startIcon={<Target size={18} />} onClick={() => navigate('/workflows/evaluations')} sx={{ borderRadius: '20px' }}>
+            评测
+          </Button>
           <Button variant="outlined" startIcon={<Download size={18} />} onClick={openImportDialog} sx={{ borderRadius: '20px', fontWeight: 'bold' }}>
             导入 Skill 为模板
+          </Button>
+          <Button variant="outlined" startIcon={<Sparkles size={18} />} onClick={() => { setCompilerPrompt(requirement); setCompiledResult(null); setCompilerOpen(true); }} sx={{ borderRadius: '20px', fontWeight: 'bold' }}>
+            自然语言生成
           </Button>
           <Button variant="contained" color="primary" onClick={handleCreateNew} sx={{ borderRadius: '20px', fontWeight: 'bold' }}>
             + 创建新流
@@ -600,6 +662,51 @@ export default function Workflows({ sessionId = 'default', onRunWorkflowTemplate
           )}
         </Box>
       </Box>
+
+      <Dialog
+        open={compilerOpen}
+        onClose={() => !compiling && setCompilerOpen(false)}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{ sx: { bgcolor: 'var(--sys-color-surface)', color: 'var(--sys-color-on-surface)', border: '1px solid var(--sys-color-surface-variant)' } }}
+      >
+        <DialogTitle>自然语言生成工作流</DialogTitle>
+        <DialogContent sx={{ display: 'grid', gap: 2, pt: 1 }}>
+          <Typography variant="body2" sx={{ color: 'var(--sys-color-on-surface-variant)' }}>
+            先生成可审查草案，再决定打开编辑器或直接启动运行。编译阶段不会执行文件、命令或联网工具。
+          </Typography>
+          <TextField
+            fullWidth
+            multiline
+            minRows={4}
+            label="任务目标"
+            value={compilerPrompt}
+            onChange={(event) => setCompilerPrompt(event.target.value)}
+            placeholder="例如：分析一个现有 Python 项目，修复登录问题，运行测试并给出可回滚的补丁。"
+          />
+          <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+            <Button onClick={handleCompile} disabled={compiling || !compilerPrompt.trim()} variant="contained" startIcon={compiling ? <CircularProgress size={15} /> : <Sparkles size={16} />}>
+              {compiling ? '编译中...' : '生成草案'}
+            </Button>
+          </Box>
+          {compiledResult && (
+            <Box sx={{ display: 'grid', gap: 1.2, borderTop: '1px solid var(--sys-color-surface-variant)', pt: 2 }}>
+              <Typography variant="h6">{compiledResult.workflow_spec?.title}</Typography>
+              <Typography variant="body2" sx={{ color: 'var(--sys-color-on-surface-variant)' }}>{compiledResult.workflow_spec?.description}</Typography>
+              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                {(compiledResult.workflow_spec?.nodes || []).map((node) => <Chip key={node.id} size="small" label={`${node.label} · ${node.model_profile}`} variant="outlined" />)}
+              </Box>
+              {!!compiledResult.validation_issues?.length && <Alert severity="warning">{compiledResult.validation_issues.map((issue) => issue.message).join('；')}</Alert>}
+              {!!compiledResult.assumptions?.length && <Typography variant="caption" sx={{ color: 'var(--sys-color-on-surface-variant)' }}>{compiledResult.assumptions.join('；')}</Typography>}
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setCompilerOpen(false)} disabled={compiling}>取消</Button>
+          <Button onClick={handleOpenCompiledEditor} disabled={!compiledResult || compiling} variant="outlined" startIcon={<Settings size={16} />}>打开编辑器</Button>
+          <Button onClick={handleRunCompiled} disabled={!compiledResult || compiling} variant="contained" startIcon={<Play size={16} />}>确认并运行</Button>
+        </DialogActions>
+      </Dialog>
 
       <Dialog
         open={exportDialogOpen}

@@ -641,7 +641,93 @@ def init_db():
                     INDEX idx_task_events (task_id, created_at, id)
                 )
             """)
-            cursor.execute("INSERT IGNORE INTO schema_migrations (version) VALUES (1)")
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS workflow_versions (
+                    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                    template_id VARCHAR(100) NOT NULL,
+                    version INT NOT NULL,
+                    spec_json LONGTEXT NOT NULL,
+                    status VARCHAR(32) NOT NULL DEFAULT 'draft',
+                    created_at DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3),
+                    UNIQUE KEY uq_workflow_version (template_id, version),
+                    INDEX idx_workflow_versions_template (template_id, created_at)
+                )
+            """)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS workflow_runs (
+                    run_id VARCHAR(64) PRIMARY KEY,
+                    task_id VARCHAR(64) DEFAULT NULL,
+                    session_id VARCHAR(64) DEFAULT NULL,
+                    template_id VARCHAR(100) DEFAULT NULL,
+                    workflow_version INT DEFAULT NULL,
+                    status VARCHAR(32) NOT NULL DEFAULT 'queued',
+                    spec_json LONGTEXT NOT NULL,
+                    input_json LONGTEXT,
+                    workspace VARCHAR(2048) DEFAULT NULL,
+                    current_node_id VARCHAR(100) DEFAULT NULL,
+                    plan_revision INT NOT NULL DEFAULT 1,
+                    replan_count INT NOT NULL DEFAULT 0,
+                    max_replans INT NOT NULL DEFAULT 3,
+                    max_parallelism INT NOT NULL DEFAULT 4,
+                    model_calls INT NOT NULL DEFAULT 0,
+                    total_tokens INT NOT NULL DEFAULT 0,
+                    approved TINYINT(1) NOT NULL DEFAULT 0,
+                    result_json LONGTEXT,
+                    error_text TEXT,
+                    created_at DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3),
+                    started_at DATETIME(3) DEFAULT NULL,
+                    finished_at DATETIME(3) DEFAULT NULL,
+                    updated_at DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+                    INDEX idx_workflow_runs_status (status, updated_at),
+                    INDEX idx_workflow_runs_session (session_id, created_at),
+                    INDEX idx_workflow_runs_template (template_id, created_at)
+                )
+            """)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS workflow_node_runs (
+                    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                    run_id VARCHAR(64) NOT NULL,
+                    node_id VARCHAR(100) NOT NULL,
+                    attempt INT NOT NULL DEFAULT 1,
+                    status VARCHAR(32) NOT NULL DEFAULT 'queued',
+                    input_json LONGTEXT,
+                    output_json LONGTEXT,
+                    error_text TEXT,
+                    evidence_json LONGTEXT,
+                    provider VARCHAR(80) DEFAULT NULL,
+                    model_profile VARCHAR(32) DEFAULT NULL,
+                    started_at DATETIME(3) DEFAULT NULL,
+                    finished_at DATETIME(3) DEFAULT NULL,
+                    created_at DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3),
+                    INDEX idx_workflow_node_runs (run_id, node_id, attempt),
+                    INDEX idx_workflow_node_status (run_id, status)
+                )
+            """)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS workflow_checkpoints (
+                    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                    run_id VARCHAR(64) NOT NULL,
+                    label VARCHAR(255) NOT NULL,
+                    kind VARCHAR(32) NOT NULL,
+                    path VARCHAR(2048) DEFAULT NULL,
+                    metadata_json LONGTEXT,
+                    created_at DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3),
+                    INDEX idx_workflow_checkpoints (run_id, created_at)
+                )
+            """)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS workflow_evaluations (
+                    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                    run_id VARCHAR(64) NOT NULL,
+                    evaluator VARCHAR(100) NOT NULL,
+                    score DECIMAL(5,2) DEFAULT NULL,
+                    passed TINYINT(1) NOT NULL DEFAULT 0,
+                    result_json LONGTEXT,
+                    created_at DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3),
+                    INDEX idx_workflow_evaluations (run_id, created_at)
+                )
+            """)
+            cursor.execute("INSERT IGNORE INTO schema_migrations (version) VALUES (1), (2)")
             
             # Seed default agents if empty
             cursor.execute("SELECT COUNT(*) as count FROM agents")
@@ -1078,6 +1164,177 @@ def list_tasks(limit: int = 50):
         with conn.cursor() as cursor:
             cursor.execute("SELECT * FROM tasks ORDER BY created_at DESC LIMIT %s", (limit,))
             return [_decode_task(row) for row in cursor.fetchall()]
+
+
+def _decode_workflow_run(row):
+    if not row:
+        return row
+    result = dict(row)
+    for source, target, default in (
+        ("spec_json", "workflow_spec", {}),
+        ("input_json", "input", {}),
+        ("result_json", "result", None),
+    ):
+        raw = result.pop(source, None)
+        try:
+            result[target] = json.loads(raw) if raw else default
+        except (TypeError, json.JSONDecodeError):
+            result[target] = default
+    return result
+
+
+def create_workflow_run(run_id: str, spec: dict, input_data: dict, *, session_id: str = "default", workspace: str | None = None, task_id: str | None = None) -> dict:
+    policy = spec.get("policy") or {}
+    meta = spec.get("meta") or {}
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "INSERT INTO workflow_runs (run_id, task_id, session_id, template_id, workflow_version, status, spec_json, input_json, workspace, max_replans, max_parallelism) VALUES (%s, %s, %s, %s, %s, 'queued', %s, %s, %s, %s, %s)",
+                (run_id, task_id, session_id, spec.get("workflow_id") or meta.get("template_id"), spec.get("spec_version", 2), _task_json(spec), _task_json(input_data or {}), workspace, int(policy.get("max_replans", 3)), int(policy.get("max_parallelism", 4)))
+            )
+    return get_workflow_run(run_id)
+
+
+def get_workflow_run(run_id: str):
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT * FROM workflow_runs WHERE run_id=%s", (run_id,))
+            return _decode_workflow_run(cursor.fetchone())
+
+
+def list_workflow_runs(limit: int = 50, session_id: str | None = None):
+    limit = max(1, min(int(limit), 200))
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+            if session_id:
+                cursor.execute("SELECT * FROM workflow_runs WHERE session_id=%s ORDER BY created_at DESC LIMIT %s", (session_id, limit))
+            else:
+                cursor.execute("SELECT * FROM workflow_runs ORDER BY created_at DESC LIMIT %s", (limit,))
+            return [_decode_workflow_run(row) for row in cursor.fetchall()]
+
+
+def update_workflow_run(run_id: str, *, status: str | None = None, task_id: str | None = None, current_node_id: str | None = None, result: dict | None = None, error: str | None = None, approved: bool | None = None, replan_count: int | None = None, plan_revision: int | None = None, model_calls: int | None = None, total_tokens: int | None = None):
+    fields = []
+    values = []
+    if status is not None:
+        fields.append("status=%s")
+        values.append(status)
+        if status == "running":
+            fields.append("started_at=COALESCE(started_at, CURRENT_TIMESTAMP(3))")
+        if status in {"succeeded", "failed", "cancelled"}:
+            fields.append("finished_at=CURRENT_TIMESTAMP(3)")
+    for column, value in (("task_id", task_id), ("current_node_id", current_node_id), ("approved", approved), ("replan_count", replan_count), ("plan_revision", plan_revision), ("model_calls", model_calls), ("total_tokens", total_tokens)):
+        if value is not None:
+            fields.append(f"{column}=%s")
+            values.append(value)
+    if result is not None:
+        fields.append("result_json=%s")
+        values.append(_task_json(result))
+    if error is not None:
+        fields.append("error_text=%s")
+        values.append(str(error)[:8000])
+    if not fields:
+        return get_workflow_run(run_id)
+    values.append(run_id)
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(f"UPDATE workflow_runs SET {', '.join(fields)}, updated_at=CURRENT_TIMESTAMP(3) WHERE run_id=%s", tuple(values))
+    return get_workflow_run(run_id)
+
+
+def replace_workflow_spec(run_id: str, spec: dict, *, replan_count: int, plan_revision: int, status: str = "queued"):
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("UPDATE workflow_runs SET spec_json=%s, replan_count=%s, plan_revision=%s, status=%s, error_text=NULL, finished_at=NULL, updated_at=CURRENT_TIMESTAMP(3) WHERE run_id=%s", (_task_json(spec), replan_count, plan_revision, status, run_id))
+    return get_workflow_run(run_id)
+
+
+def create_workflow_node_run(run_id: str, node_id: str, attempt: int, *, status: str = "running", input_data: dict | None = None, provider: str | None = None, model_profile: str | None = None) -> int:
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("INSERT INTO workflow_node_runs (run_id, node_id, attempt, status, input_json, provider, model_profile, started_at) VALUES (%s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP(3))", (run_id, node_id, attempt, status, _task_json(input_data or {}), provider, model_profile))
+            return cursor.lastrowid
+
+
+def finish_workflow_node_run(node_run_id: int, *, status: str, output: dict | None = None, error: str | None = None, evidence: dict | None = None, provider: str | None = None):
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("UPDATE workflow_node_runs SET status=%s, output_json=%s, error_text=%s, evidence_json=%s, provider=COALESCE(%s, provider), finished_at=CURRENT_TIMESTAMP(3) WHERE id=%s", (status, _task_json(output), error, _task_json(evidence), provider, node_run_id))
+
+
+def get_workflow_node_runs(run_id: str):
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT * FROM workflow_node_runs WHERE run_id=%s ORDER BY created_at ASC, id ASC", (run_id,))
+            rows = cursor.fetchall()
+            for row in rows:
+                for source, target in (("input_json", "input"), ("output_json", "output"), ("evidence_json", "evidence")):
+                    raw = row.pop(source, None)
+                    try:
+                        row[target] = json.loads(raw) if raw else {}
+                    except (TypeError, json.JSONDecodeError):
+                        row[target] = {}
+            return rows
+
+
+def save_workflow_checkpoint(run_id: str, checkpoint: dict):
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("INSERT INTO workflow_checkpoints (run_id, label, kind, path, metadata_json) VALUES (%s, %s, %s, %s, %s)", (run_id, checkpoint.get("label", "checkpoint"), checkpoint.get("kind", "snapshot"), checkpoint.get("path"), _task_json(checkpoint.get("metadata") or {})))
+
+
+def get_workflow_checkpoints(run_id: str):
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT * FROM workflow_checkpoints WHERE run_id=%s ORDER BY created_at ASC, id ASC", (run_id,))
+            rows = cursor.fetchall()
+            for row in rows:
+                raw = row.pop("metadata_json", None)
+                try:
+                    row["metadata"] = json.loads(raw) if raw else {}
+                except (TypeError, json.JSONDecodeError):
+                    row["metadata"] = {}
+            return rows
+
+
+def save_workflow_evaluation(run_id: str, evaluator: str, score: float | None, passed: bool, result: dict):
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("INSERT INTO workflow_evaluations (run_id, evaluator, score, passed, result_json) VALUES (%s, %s, %s, %s, %s)", (run_id, evaluator, score, passed, _task_json(result)))
+
+
+def get_workflow_evaluations(run_id: str):
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT * FROM workflow_evaluations WHERE run_id=%s ORDER BY created_at ASC, id ASC", (run_id,))
+            rows = cursor.fetchall()
+            for row in rows:
+                raw = row.pop("result_json", None)
+                try:
+                    row["result"] = json.loads(raw) if raw else {}
+                except (TypeError, json.JSONDecodeError):
+                    row["result"] = {}
+            return rows
+
+
+def save_workflow_version(template_id: str, version: int, spec: dict, status: str = "draft"):
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("INSERT INTO workflow_versions (template_id, version, spec_json, status) VALUES (%s, %s, %s, %s) ON DUPLICATE KEY UPDATE spec_json=%s, status=%s", (template_id, version, _task_json(spec), status, _task_json(spec), status))
+
+
+def get_workflow_versions(template_id: str):
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT * FROM workflow_versions WHERE template_id=%s ORDER BY version DESC", (template_id,))
+            rows = cursor.fetchall()
+            for row in rows:
+                raw = row.pop("spec_json", None)
+                try:
+                    row["workflow_spec"] = json.loads(raw) if raw else {}
+                except (TypeError, json.JSONDecodeError):
+                    row["workflow_spec"] = {}
+            return rows
 
 def get_run_records(limit: int = 50):
     with get_connection() as conn:

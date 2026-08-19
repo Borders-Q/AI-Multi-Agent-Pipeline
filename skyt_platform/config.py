@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-import secrets
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -31,6 +30,7 @@ def _env_int(name: str, default: int) -> int:
 class Settings:
     environment: str
     auth_enabled: bool
+    auth_mode: str
     access_token: str
     access_cookie_name: str
     allowed_origins: tuple[str, ...]
@@ -45,24 +45,21 @@ class Settings:
 
 
 def _load_access_token() -> str:
-    token = os.getenv("SKYT_ACCESS_TOKEN", "").strip()
-    if token:
-        return token
-
-    token = secrets.token_urlsafe(32)
-    local_env = PROJECT_ROOT / ".env.local"
-    existing = local_env.read_text(encoding="utf-8") if local_env.exists() else ""
-    if "SKYT_ACCESS_TOKEN=" not in existing:
-        prefix = "" if not existing or existing.endswith("\n") else "\n"
-        local_env.write_text(
-            f"{existing}{prefix}SKYT_ACCESS_TOKEN={token}\n",
-            encoding="utf-8",
-        )
-    os.environ["SKYT_ACCESS_TOKEN"] = token
-    return token
+    """Read a deployment-provided token without creating or persisting secrets."""
+    return os.getenv("SKYT_ACCESS_TOKEN", "").strip()
 
 
 def load_settings() -> Settings:
+    auth_mode = os.getenv("SKYT_AUTH_MODE", "local").strip().lower() or "local"
+    if auth_mode not in {"local", "token"}:
+        raise ValueError("SKYT_AUTH_MODE must be either 'local' or 'token'.")
+    auth_enabled = _env_bool("SKYT_AUTH_ENABLED", True)
+    access_token = _load_access_token()
+    if auth_enabled and auth_mode == "token" and not access_token:
+        raise RuntimeError(
+            "SKYT_AUTH_MODE=token requires SKYT_ACCESS_TOKEN from the deployment environment."
+        )
+
     origin_text = os.getenv(
         "SKYT_ALLOWED_ORIGINS",
         "http://127.0.0.1:5173,http://localhost:5173",
@@ -70,8 +67,9 @@ def load_settings() -> Settings:
     origins = tuple(item.strip() for item in origin_text.split(",") if item.strip())
     return Settings(
         environment=os.getenv("SKYT_ENV", "development").strip().lower(),
-        auth_enabled=_env_bool("SKYT_AUTH_ENABLED", True),
-        access_token=_load_access_token(),
+        auth_enabled=auth_enabled,
+        auth_mode=auth_mode,
+        access_token=access_token,
         access_cookie_name=os.getenv("SKYT_ACCESS_COOKIE", "skyt_access").strip() or "skyt_access",
         allowed_origins=origins,
         max_request_bytes=_env_int("SKYT_MAX_REQUEST_BYTES", 8 * 1024 * 1024),

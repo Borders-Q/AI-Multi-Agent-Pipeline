@@ -14,6 +14,7 @@ from typing import Any, Optional
 import sys
 import logging
 from collections import defaultdict, deque
+from pathlib import Path
 
 # Windows 平台下屏蔽 Uvicorn/asyncio 底层无害的 socket.shutdown 报错 (WinError 10022/10054)
 if sys.platform == 'win32':
@@ -63,16 +64,22 @@ from agent.distillation_worker import distillation_loop
 from skyt_platform.auth import (
     clear_auth_cookie,
     is_public_path,
+    is_request_authorized,
+    is_request_source_allowed,
     is_token_valid,
     set_auth_cookie,
-    token_from_request,
-    token_from_websocket,
+    is_websocket_authorized,
+    is_websocket_source_allowed,
     unauthorized_response,
 )
 from skyt_platform.config import settings
 from skyt_platform.logging_setup import configure_logging, request_id_var
 from skyt_platform.tasks import task_manager
 from skyt_platform.workspace_policy import WorkspaceViolation, canonical_root, resolve_inside
+from skyt_platform.checkpoints import restore_checkpoint
+from skyt_platform.workflow_spec import normalize_workflow_spec, spec_to_legacy_workflow, validate_workflow_spec
+from services.workflow_service import compile_workflow
+from skyt_platform.workflow_runtime import workflow_runtime
 
 configure_logging()
 logger = logging.getLogger(__name__)
@@ -85,9 +92,11 @@ _request_windows = defaultdict(deque)
 async def request_context_and_auth(request: Request, call_next):
     request_id = request.headers.get("X-Request-ID") or uuid.uuid4().hex
     request_id_var.set(request_id)
-    if request.method == "OPTIONS" or is_public_path(request.url.path):
+    if not is_request_source_allowed(request):
+        response = unauthorized_response()
+    elif request.method == "OPTIONS" or is_public_path(request.url.path):
         response = await call_next(request)
-    elif not is_token_valid(token_from_request(request)):
+    elif not is_request_authorized(request):
         response = unauthorized_response()
     else:
         response = await call_next(request)
@@ -190,6 +199,7 @@ async def startup_event():
     
     # Start telemetry cache loop
     asyncio.create_task(telemetry_loop())
+    task_manager.register("workflow_run", workflow_runtime.handle_task)
     await task_manager.start()
 
 
@@ -213,6 +223,8 @@ class LoginRequest(BaseModel):
 
 @app.post("/api/auth/login")
 async def login(req: LoginRequest):
+    if settings.auth_mode != "token":
+        return {"status": "success", "auth_mode": settings.auth_mode}
     if not is_token_valid(req.access_token):
         raise HTTPException(status_code=401, detail="访问令牌不正确。")
     response = Response(content=json.dumps({"status": "success"}), media_type="application/json")
@@ -229,9 +241,14 @@ async def logout():
 
 @app.get("/api/auth/me")
 async def auth_me(request: Request):
-    if not is_token_valid(token_from_request(request)):
+    if not is_request_authorized(request):
         raise HTTPException(status_code=401, detail="未登录。")
-    return {"authenticated": True, "auth_enabled": settings.auth_enabled}
+    return {
+        "authenticated": True,
+        "auth_enabled": settings.auth_enabled,
+        "auth_mode": settings.auth_mode,
+        "auth_required": settings.auth_enabled and settings.auth_mode == "token",
+    }
 
 
 @app.get("/health/live")
@@ -702,6 +719,30 @@ class SkillToTemplateRequest(BaseModel):
     save: bool = True
     template_id: Optional[str] = None
 
+
+class WorkflowCompileRequest(BaseModel):
+    prompt: str
+    title: str = ""
+    provider: Optional[str] = None
+    policy: dict = Field(default_factory=dict)
+
+
+class WorkflowSpecRequest(BaseModel):
+    workflow_spec: Any
+
+
+class WorkflowRunRequest(BaseModel):
+    workflow_spec: Any
+    input: dict = Field(default_factory=dict)
+    session_id: str = "default"
+    workspace: Optional[str] = None
+
+
+class WorkflowActionRequest(BaseModel):
+    reason: str = ""
+    workflow_spec: Optional[Any] = None
+    checkpoint_id: Optional[int] = None
+
 def _trae_skill_download_response(package: dict) -> Response:
     zip_bytes = build_skill_zip(package)
     filename = f"{package['skill_name']}.zip"
@@ -741,9 +782,207 @@ def save_workflow_template_endpoint(template_id: str, req: SaveTemplateRequest):
         db.save_workflow_template(
             template_id, req.title, req.description, req.stage, req.tags, req.author, req.workflow_json
         )
+        try:
+            spec = normalize_workflow_spec(req.workflow_json, title=req.title)
+            versions = db.get_workflow_versions(template_id)
+            next_version = max([int(item.get("version") or 0) for item in versions] or [0]) + 1
+            db.save_workflow_version(template_id, next_version, spec, status=req.stage.lower())
+        except Exception:
+            logger.warning("workflow version persistence failed for %s", template_id, exc_info=True)
         return {"status": "success"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/workflows/compile")
+async def compile_workflow_endpoint(req: WorkflowCompileRequest):
+    result = await compile_workflow(req.prompt, title=req.title, provider=req.provider, policy=req.policy)
+    return {
+        "status": "success",
+        "workflow_spec": result["workflow_spec"],
+        "legacy_workflow": spec_to_legacy_workflow(result["workflow_spec"]),
+        "assumptions": result.get("assumptions", []),
+        "questions": result.get("questions", []),
+        "source": result.get("source", "heuristic"),
+        "validation_issues": result.get("validation_issues", []),
+    }
+
+
+@app.post("/api/workflows/validate")
+def validate_workflow_endpoint(req: WorkflowSpecRequest):
+    spec = normalize_workflow_spec(req.workflow_spec)
+    issues = validate_workflow_spec(spec)
+    return {"valid": not any(issue.get("severity") == "error" for issue in issues), "workflow_spec": spec, "issues": issues}
+
+
+@app.post("/api/workflows/runs", status_code=202)
+async def create_workflow_run_endpoint(req: WorkflowRunRequest):
+    spec = normalize_workflow_spec(req.workflow_spec)
+    issues = validate_workflow_spec(spec)
+    if any(issue.get("severity") == "error" for issue in issues):
+        raise HTTPException(status_code=422, detail={"message": "工作流校验失败。", "issues": issues})
+    workspace = _canonical_workspace(req.workspace) if req.workspace else None
+    run_id = f"WFRUN_{uuid.uuid4().hex[:12].upper()}"
+    run = db.create_workflow_run(run_id, spec, req.input or {"task": ""}, session_id=req.session_id, workspace=workspace)
+    try:
+        task = await task_manager.submit("workflow_run", {"run_id": run_id}, session_id=req.session_id, run_id=run_id)
+        db.update_workflow_run(run_id, task_id=task.get("task_id"))
+        return {"status": "queued", "run_id": run_id, "task_id": task.get("task_id"), "run": db.get_workflow_run(run_id), "validation_issues": issues}
+    except Exception as exc:
+        db.update_workflow_run(run_id, status="failed", error=str(exc))
+        raise HTTPException(status_code=500, detail=f"工作流任务创建失败：{exc}") from exc
+
+
+@app.get("/api/workflows/runs/{run_id}")
+def get_workflow_run_endpoint(run_id: str):
+    run = db.get_workflow_run(run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="Workflow run not found")
+    return {"run": run, "nodes": db.get_workflow_node_runs(run_id), "checkpoints": db.get_workflow_checkpoints(run_id), "evaluations": db.get_workflow_evaluations(run_id)}
+
+
+@app.get("/api/workflows/runs/{run_id}/events")
+def get_workflow_run_events_endpoint(run_id: str):
+    if not db.get_workflow_run(run_id):
+        raise HTTPException(status_code=404, detail="Workflow run not found")
+    return {"events": db.get_run_events(run_id)}
+
+
+@app.get("/api/workflows/evaluations")
+def workflow_evaluations_endpoint():
+    """Return the fixed benchmark and aggregate persisted workflow metrics."""
+    benchmark_path = Path(__file__).resolve().parent / "evals" / "workflows" / "tasks.json"
+    try:
+        benchmark_cases = json.loads(benchmark_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        benchmark_cases = []
+    runs = db.list_workflow_runs(limit=200)
+    finished = [run for run in runs if run.get("status") in {"succeeded", "failed", "cancelled"}]
+    succeeded = [run for run in finished if run.get("status") == "succeeded"]
+    quality_passes = 0
+    model_calls = []
+    for run in finished:
+        model_calls.append(int(run.get("model_calls") or 0))
+        evaluations = db.get_workflow_evaluations(run.get("run_id"))
+        if any(item.get("passed") for item in evaluations):
+            quality_passes += 1
+    count = len(finished)
+    return {
+        "benchmark": {"case_count": len(benchmark_cases), "cases": benchmark_cases},
+        "metrics": {
+            "run_count": count,
+            "success_rate": len(succeeded) / count if count else 0,
+            "quality_gate_rate": quality_passes / count if count else 0,
+            "average_model_calls": round(sum(model_calls) / len(model_calls), 2) if model_calls else 0,
+            "manual_takeover_rate": sum(1 for run in runs if run.get("status") == "waiting_approval") / len(runs) if runs else 0,
+        },
+        "recent_runs": [
+            {"run_id": run.get("run_id"), "status": run.get("status"), "model_calls": run.get("model_calls"), "updated_at": run.get("updated_at")}
+            for run in runs[:20]
+        ],
+    }
+
+
+@app.post("/api/workflows/runs/{run_id}/pause")
+def pause_workflow_run_endpoint(run_id: str, req: WorkflowActionRequest):
+    run = db.get_workflow_run(run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="Workflow run not found")
+    if run.get("status") not in {"queued", "running", "waiting_approval"}:
+        raise HTTPException(status_code=409, detail="当前工作流状态不能暂停。")
+    return {"status": "paused", "run": db.update_workflow_run(run_id, status="paused")}
+
+
+@app.post("/api/workflows/runs/{run_id}/resume")
+def resume_workflow_run_endpoint(run_id: str, req: WorkflowActionRequest):
+    run = db.get_workflow_run(run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="Workflow run not found")
+    if run.get("status") not in {"paused", "waiting_approval"}:
+        raise HTTPException(status_code=409, detail="当前工作流状态不能恢复。")
+    return {"status": "running", "run": db.update_workflow_run(run_id, status="running")}
+
+
+@app.post("/api/workflows/runs/{run_id}/cancel")
+async def cancel_workflow_run_endpoint(run_id: str, req: WorkflowActionRequest):
+    run = db.get_workflow_run(run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="Workflow run not found")
+    if run.get("task_id"):
+        await task_manager.cancel(run["task_id"])
+    return {"status": "cancelled", "run": db.update_workflow_run(run_id, status="cancelled", error=req.reason or "用户取消")}
+
+
+@app.post("/api/workflows/runs/{run_id}/rollback")
+def rollback_workflow_run_endpoint(run_id: str, req: WorkflowActionRequest):
+    run = db.get_workflow_run(run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="Workflow run not found")
+    if not run.get("workspace"):
+        raise HTTPException(status_code=409, detail="该运行没有绑定工作区，无法回滚文件。")
+    checkpoints = db.get_workflow_checkpoints(run_id)
+    selected = None
+    if req.checkpoint_id is not None:
+        selected = next((item for item in checkpoints if int(item.get("id")) == int(req.checkpoint_id)), None)
+    else:
+        selected = checkpoints[-1] if checkpoints else None
+    if not selected or not selected.get("path"):
+        raise HTTPException(status_code=404, detail="没有可用检查点。")
+    try:
+        result = restore_checkpoint(selected["path"], run["workspace"])
+    except (OSError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=f"回滚失败：{exc}") from exc
+    db.save_run_event(run_id, "WORKFLOW_ROLLBACK", "WorkflowRuntime", "SUCCESS", "已恢复到工作流检查点。", json.dumps(result, ensure_ascii=False), 0)
+    return {"status": "rolled_back", "checkpoint": selected, "result": result}
+
+
+@app.post("/api/workflows/runs/{run_id}/approve")
+def approve_workflow_run_endpoint(run_id: str, req: WorkflowActionRequest):
+    run = db.get_workflow_run(run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="Workflow run not found")
+    return {"status": "approved", "run": db.update_workflow_run(run_id, status="running", approved=True)}
+
+
+@app.post("/api/workflows/runs/{run_id}/replan", status_code=202)
+async def replan_workflow_run_endpoint(run_id: str, req: WorkflowActionRequest):
+    run = db.get_workflow_run(run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="Workflow run not found")
+    if run.get("status") in {"running", "queued", "waiting_approval"}:
+        raise HTTPException(status_code=409, detail="工作流仍在运行，请暂停后再重规划。")
+    spec = normalize_workflow_spec(req.workflow_spec or run.get("workflow_spec") or {})
+    executed = {
+        str(item.get("node_id"))
+        for item in db.get_workflow_node_runs(run_id)
+        if item.get("status") == "succeeded"
+    }
+    original_nodes = {node["id"]: node for node in normalize_workflow_spec(run.get("workflow_spec") or {}).get("nodes") or []}
+    proposed_nodes = {node["id"]: node for node in spec.get("nodes") or []}
+    changed_executed = [
+        node_id for node_id in executed
+        if node_id not in proposed_nodes
+        or json.dumps(original_nodes.get(node_id), ensure_ascii=False, sort_keys=True, default=str)
+        != json.dumps(proposed_nodes.get(node_id), ensure_ascii=False, sort_keys=True, default=str)
+    ]
+    if changed_executed:
+        raise HTTPException(status_code=422, detail={"message": "重规划只能修改尚未执行的节点。", "node_ids": sorted(changed_executed)})
+    issues = validate_workflow_spec(spec)
+    if any(issue.get("severity") == "error" for issue in issues):
+        raise HTTPException(status_code=422, detail={"message": "新计划校验失败。", "issues": issues})
+    count = int(run.get("replan_count") or 0) + 1
+    maximum = int((spec.get("policy") or {}).get("max_replans", 3))
+    if count > maximum:
+        raise HTTPException(status_code=409, detail="已达到本次工作流的最大重规划次数。")
+    db.replace_workflow_spec(run_id, spec, replan_count=count, plan_revision=int(run.get("plan_revision") or 1) + 1)
+    task = await task_manager.submit("workflow_run", {"run_id": run_id}, session_id=run.get("session_id"), run_id=run_id)
+    db.update_workflow_run(run_id, task_id=task.get("task_id"))
+    return {"status": "queued", "run_id": run_id, "task_id": task.get("task_id"), "run": db.get_workflow_run(run_id), "validation_issues": issues}
+
+
+@app.get("/api/workflows/templates/{template_id}/versions")
+def workflow_template_versions_endpoint(template_id: str):
+    return {"versions": db.get_workflow_versions(template_id)}
 
 @app.post("/api/workflows/templates/{template_id}/export-trae-skill")
 def export_workflow_template_trae_skill_endpoint(template_id: str, req: ExportTraeSkillRequest):
@@ -1178,7 +1417,7 @@ async def close_terminal_session(session_id: str):
 
 @app.websocket("/api/terminal/sessions/{session_id}")
 async def terminal_websocket(websocket: WebSocket, session_id: str):
-    if not is_token_valid(token_from_websocket(websocket)):
+    if not is_websocket_source_allowed(websocket) or not is_websocket_authorized(websocket):
         await websocket.close(code=1008, reason="Authentication required")
         return
     await websocket.accept()
@@ -2211,4 +2450,4 @@ def debug_threads():
 
 if __name__ == "__main__":
 
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="127.0.0.1", port=8000)

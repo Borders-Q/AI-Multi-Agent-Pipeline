@@ -70,6 +70,7 @@ reports_dump.json
 # Generated workspaces and export outputs
 workspace/
 outputs/
+.skyt/
 
 # OS/editor noise
 .DS_Store
